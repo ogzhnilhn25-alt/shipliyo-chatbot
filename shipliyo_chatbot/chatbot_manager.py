@@ -1,14 +1,10 @@
 import re
+import os
 from sms_parser import SMSParser
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from pymongo import MongoClient
-
-# ResponseManager'ı ayrı dosyadan import ediyoruz
 from response_manager import ResponseManager
-
-import os
-# ... diğer import'lar
 
 class ChatbotManager:
     def __init__(self):
@@ -29,9 +25,11 @@ class ChatbotManager:
             self.mongo_connected = False
         
         # Demo data her zaman hazır
-        self.demo_sms_data = self._create_demo_data()        
+        self.demo_sms_data = self._create_demo_data()
 
-return [
+    def _create_demo_data(self):
+        """Demo SMS verilerini oluşturur"""
+        return [
             {
                 "body": "Trendyol onay kodunuz: 123456 Ref: A1B2C3",
                 "timestamp": datetime.now() - timedelta(seconds=30),
@@ -303,7 +301,6 @@ return [
             }
 
 
-# Test - GÜNCELLENMİŞ
 def test_chatbot():
     """Chatbot testleri"""
     chatbot = ChatbotManager()
