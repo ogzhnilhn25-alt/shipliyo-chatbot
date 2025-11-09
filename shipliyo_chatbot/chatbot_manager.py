@@ -29,7 +29,9 @@ class ChatbotManager:
             self.mongo_connected = False
         
         # Demo data her zaman hazır
-        self.demo_sms_data = self._create_demo_data()        return [
+        self.demo_sms_data = self._create_demo_data()        
+
+return [
             {
                 "body": "Trendyol onay kodunuz: 123456 Ref: A1B2C3",
                 "timestamp": datetime.now() - timedelta(seconds=30),
