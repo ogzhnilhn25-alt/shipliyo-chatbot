@@ -1,9 +1,9 @@
-// Shipliyo Chat Widget - Premium Tasarım (Güncellenmiş)
+// Shipliyo Chat Widget - Backend Entegreli
 class ShipliyoWidget {
     constructor() {
         this.isOpen = false;
         this.isLoading = false;
-        this.currentView = 'main'; // main, chat, sites
+        this.currentView = 'main';
         this.init();
     }
     
@@ -449,6 +449,18 @@ class ShipliyoWidget {
                     border-bottom-right-radius: 4px;
                 }
                 
+                .site-option {
+                    cursor: pointer !important;
+                    background: #f0f4ff !important;
+                    border: 1px solid #667eea !important;
+                    transition: all 0.2s ease;
+                }
+                
+                .site-option:hover {
+                    background: #e0e7ff !important;
+                    transform: translateX(5px);
+                }
+                
                 .chat-input-container {
                     border-top: 1px solid #e5e7eb;
                     padding-top: 16px;
@@ -491,17 +503,14 @@ class ShipliyoWidget {
     }
     
     attachEvents() {
-        // Bubble click
         document.getElementById('shipliyoBubble').addEventListener('click', () => {
             this.toggleWidget();
         });
         
-        // Close button
         document.querySelector('.close-btn').addEventListener('click', () => {
             this.closeWidget();
         });
         
-        // Action cards
         document.querySelectorAll('.action-card').forEach(card => {
             card.addEventListener('click', (e) => {
                 const action = e.currentTarget.dataset.action;
@@ -509,7 +518,6 @@ class ShipliyoWidget {
             });
         });
         
-        // Reference search
         document.getElementById('searchRefBtn').addEventListener('click', () => {
             this.searchReference();
         });
@@ -520,7 +528,6 @@ class ShipliyoWidget {
             }
         });
         
-        // Chat input
         document.getElementById('sendMessageBtn').addEventListener('click', () => {
             this.sendMessage();
         });
@@ -553,12 +560,9 @@ class ShipliyoWidget {
     }
     
     showView(viewName) {
-        // Hide all views
         document.querySelectorAll('[class^="view-"]').forEach(view => {
             view.style.display = 'none';
         });
-        
-        // Show selected view
         document.getElementById(viewName + 'View').style.display = 'block';
         this.currentView = viewName;
     }
@@ -590,13 +594,28 @@ class ShipliyoWidget {
         if (!refCode) return;
         
         this.showLoading(true);
+        this.addMessage(`"${refCode}" referans kodu aranıyor...`, 'user');
         
-        // Backend API call simulation
-        setTimeout(() => {
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: refCode,
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
             this.showLoading(false);
-            this.addMessage(`"${refCode}" referans kodu için arama yapılıyor...`, 'bot');
-            // Burada backend API'ye istek atılacak
-        }, 1000);
+            this.addMessage(data.response || 'Sonuç bulunamadı', 'bot');
+            this.showView('chat');
+        })
+        .catch(error => {
+            this.showLoading(false);
+            this.addMessage('Arama sırasında hata oluştu', 'bot');
+            this.showView('chat');
+        });
     }
     
     showSites() {
@@ -605,11 +624,7 @@ class ShipliyoWidget {
     }
     
     loadSites() {
-        // Boş sites array - kendi sitelerini buraya ekleyebilirsin
-        const sites = [
-            // Örnek: { name: 'Site Adı', url: 'https://site.com', icon: '🌐' }
-        ];
-        
+        const sites = [];
         const grid = document.getElementById('sitesGrid');
         
         if (sites.length === 0) {
@@ -626,18 +641,94 @@ class ShipliyoWidget {
     
     getVerificationCode() {
         this.showLoading(true);
+        this.showView('chat');
+        this.addMessage('Doğrulama kodu istiyorum', 'user');
         
-        // Backend API call simulation
-        setTimeout(() => {
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: 'get_code',
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
             this.showLoading(false);
-            this.addMessage('Doğrulama kodunuz: 123456', 'bot');
-            this.showView('chat');
-        }, 1500);
+            
+            if (data.bubbles && data.bubbles.length > 0) {
+                this.showSiteSelection(data.bubbles);
+            } else {
+                this.addMessage(data.response || 'Kod alınamadı', 'bot');
+            }
+        })
+        .catch(error => {
+            this.showLoading(false);
+            this.addMessage('Bağlantı hatası, lütfen tekrar deneyin.', 'bot');
+        });
+    }
+    
+    showSiteSelection(bubbles) {
+        const container = document.getElementById('messagesContainer');
+        this.addMessage('Hangi site için kod istiyorsunuz?', 'bot');
+        
+        bubbles.forEach(bubble => {
+            const siteButton = document.createElement('div');
+            siteButton.className = 'message message-bot site-option';
+            siteButton.innerHTML = `<strong>${bubble.title}</strong>`;
+            siteButton.addEventListener('click', () => {
+                this.selectSite(bubble.payload);
+            });
+            container.appendChild(siteButton);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    selectSite(sitePayload) {
+        this.showLoading(true);
+        this.addMessage(sitePayload, 'user');
+        
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: sitePayload,
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            this.showLoading(false);
+            this.addMessage(data.response || 'Kod alındı', 'bot');
+        })
+        .catch(error => {
+            this.showLoading(false);
+            this.addMessage('Hata oluştu', 'bot');
+        });
     }
     
     showHelp() {
         this.showView('chat');
-        this.addMessage('Size nasıl yardımcı olabilirim? Aşağıdaki konularda destek sunuyorum:\n\n• Doğrulama kodları\n• Referans aramaları\n• Sistem entegrasyonları\n• Genel sorular', 'bot');
+        this.addMessage('Yardım istiyorum', 'user');
+        
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: 'help',
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            this.addMessage(data.response || 'Yardım mesajı', 'bot');
+        })
+        .catch(error => {
+            this.addMessage('Yardım sistemine ulaşılamıyor', 'bot');
+        });
     }
     
     sendMessage() {
@@ -649,10 +740,22 @@ class ShipliyoWidget {
         this.addMessage(message, 'user');
         input.value = '';
         
-        // Simulate AI response
-        setTimeout(() => {
-            this.addMessage('Mesajınızı aldım. Size en kısa sürede yardımcı olacağım!', 'bot');
-        }, 1000);
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: message,
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            this.addMessage(data.response || 'Anladım', 'bot');
+        })
+        .catch(error => {
+            this.addMessage('Mesajınız iletilemedi', 'bot');
+        });
     }
     
     addMessage(text, sender) {
@@ -660,7 +763,6 @@ class ShipliyoWidget {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message message-${sender}`;
         messageDiv.textContent = text;
-        
         container.appendChild(messageDiv);
         container.scrollTop = container.scrollHeight;
     }
@@ -670,7 +772,6 @@ class ShipliyoWidget {
     }
 }
 
-// Widget'ı başlat
 if (typeof window !== 'undefined') {
     document.addEventListener('DOMContentLoaded', function() {
         window.shipliyoWidget = new ShipliyoWidget();
