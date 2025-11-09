@@ -217,39 +217,37 @@ class ChatbotManager:
                     parsed = self.sms_parser.parse_sms(sms['body'], language)
                     parsed_sms_list.append(parsed)
                 
-                if parsed_sms_list:
-    if len(parsed_sms_list) > 1:
-        # Birden fazla SMS bulundu, hem sayıyı hem detayları dön
-        sms_details = [
-            {"site": sms['site'].title(), "code": sms['verification_code'], "raw": sms.get('raw', '')}
-            for sms in parsed_sms_list
-        ]
-        response_text = self.response_manager.get_response('multiple_sms_found', language).format(
-            count=len(parsed_sms_list),
-            seconds=seconds
-        )
-        return {
-            "success": True,
-            "response": response_text,
-            "response_type": "list",
-            "sms_list": sms_details,
-            "source": "mongodb"
-        }
-    else:
-        # Tek SMS bulundu
-        sms = parsed_sms_list[0]
-        return {
-            "success": True,
-            "response": self.response_manager.get_response('reference_found', language).format(
-                site=sms['site'].title(),
-                code=sms['verification_code']
-            ),
-            "response_type": "direct",
-            "data": sms,
-            "source": "mongodb"
-        }
+                if len(parsed_sms_list) > 1:
+                    # Birden fazla SMS bulundu, hem sayıyı hem detayları dön
+                    sms_details = [
+                        {"site": sms['site'].title(), "code": sms['verification_code'], "raw": sms.get('raw', '')}
+                        for sms in parsed_sms_list
+                    ]
+                    response_text = self.response_manager.get_response('multiple_sms_found', language).format(
+                        count=len(parsed_sms_list),
+                        seconds=seconds
+                    )
+                    return {
+                        "success": True,
+                        "response": response_text,
+                        "response_type": "list",
+                        "sms_list": sms_details,
+                        "source": "mongodb"
+                    }
+                else:
+                    # Tek SMS bulundu
+                    sms = parsed_sms_list[0]
+                    return {
+                        "success": True,
+                        "response": self.response_manager.get_response('reference_found', language).format(
+                            site=sms['site'].title(),
+                            code=sms['verification_code']
+                        ),
+                        "response_type": "direct",
+                        "data": sms,
+                        "source": "mongodb"
+                    }
 
-            
             # Hiç SMS bulunamadı
             return {
                 "success": False,
