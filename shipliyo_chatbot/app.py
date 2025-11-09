@@ -137,11 +137,12 @@ def supported_languages():
     })
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5001))  # Railway PORT değişkenini kullan
     print("🚀 Shipliyo Chatbot API başlatılıyor...")
-    print("📍 Endpoint: http://localhost:5001/api/chatbot")
-    print("🌐 Web Arayüzü: http://localhost:5001")
+    print(f"📍 Port: {port}")
+    print("🌐 Web Arayüzü: http://localhost:" + str(port))
     print("🌍 Desteklenen diller: Türkçe, Bulgarca, İngilizce")
     print("📱 Özellikler: Referans kodu arama, Site seçimi, Çok dilli, Baloncuk menü")
     print("─" * 60)
     
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)  # Production'da debug=False
