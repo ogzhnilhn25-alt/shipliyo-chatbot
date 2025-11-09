@@ -3,45 +3,39 @@
 <head>
     <title>Shipliyo Chatbot</title>
     <style>
-        .bubble { padding: 10px; margin: 5px; background: #007bff; color: white; border-radius: 20px; cursor: pointer; display: inline-block; }
-        .chat-container { max-width: 400px; margin: 50px auto; padding: 20px; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <h2>Shipliyo Chatbot</h2>
-        <div id="bubbles">
-            <div class="bubble" onclick="sendMessage('get_code')">📱 Kod Al</div>
-            <div class="bubble" onclick="sendMessage('help')">❓ Yardım</div>
+    <div class="container">
+        <div class="header">
+            <h1>Shipliyo Chatbot</h1>
+            <p>Sağ alt köşedeki chat butonuna tıklayarak yardım alabilirsiniz</p>
         </div>
-        <div id="response"></div>
     </div>
 
-    <script>
-        async function sendMessage(message) {
-            const response = await fetch('/api/chatbot', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    message: message,
-                    session_id: 'web_user',
-                    language: 'tr'
-                })
-            });
-            const data = await response.json();
-            
-            if (data.bubbles) {
-                let bubblesHtml = '';
-                data.bubbles.forEach(bubble => {
-                    bubblesHtml += `<div class="bubble" onclick="sendMessage('${bubble.payload}')">${bubble.title}</div>`;
-                });
-                document.getElementById('bubbles').innerHTML = bubblesHtml;
-            }
-            
-            document.getElementById('response').innerHTML = `<p>${data.response}</p>`;
-        }
- </script>
-
-<script src="/static/shipliyo-widget.js"></script>
+    <script src="/static/shipliyo-widget.js"></script>
 </body>
 </html>
