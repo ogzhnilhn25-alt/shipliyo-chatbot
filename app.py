@@ -15,7 +15,7 @@ app = Flask(__name__)
 CORS(app)
 
 # MongoDB bağlantısı
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+MONGO_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
 client = MongoClient(MONGO_URI)
 db = client.shipliyo_sms
 
@@ -60,30 +60,107 @@ def supported_languages():
         ]
     })
 
-# ✅ ESKİ SMS ENDPOINT'LERİ (Aynen Koru)
+# ✅ ESKİ SMS ENDPOINT'LERİ
 @app.route('/gateway-sms', methods=['POST'])
 def gateway_sms():
-    # ... mevcut kodunuz aynen kalsın ...
+    """Android app'in eski endpoint'i için yönlendirme"""
     try:
-        print("🎯 ESKİ ENDPOINT ÇAĞRILDI - /gateway-sms")
         data = request.get_json()
-        # ... mevcut kod ...
         
+        # MongoDB'ye kaydet
+        sms_data = {
+            'from': data.get('from'),
+            'body': data.get('body'),
+            'timestamp': datetime.now(),
+            'device_id': data.get('deviceId', 'unknown'),
+            'processed': False,
+            'created_at': datetime.now(),
+            'source': 'legacy_gateway'
+        }
+        
+        result = db.sms_messages.insert_one(sms_data)
+        
+        return jsonify({
+            "status": "success",
+            "message": "SMS alındı (legacy endpoint)",
+            "sms_id": str(result.inserted_id)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"Sistem hatası: {str(e)}"
+        }), 500
+
 @app.route('/incoming-sms', methods=['POST'])
 def incoming_sms():
-    # ... mevcut kodunuz aynen kalsın ...
+    """Yeni SMS endpoint'i"""
+    try:
+        data = request.get_json()
+        
+        # MongoDB'ye kaydet
+        sms_data = {
+            'from': data.get('from'),
+            'body': data.get('body'),
+            'timestamp': datetime.now(),
+            'device_id': data.get('deviceId', 'unknown'),
+            'processed': False,
+            'created_at': datetime.now(),
+            'source': 'new_gateway'
+        }
+        
+        result = db.sms_messages.insert_one(sms_data)
+        
+        return jsonify({
+            "status": "success",
+            "message": "SMS alındı ve kaydedildi",
+            "sms_id": str(result.inserted_id)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Sistem hatası: {str(e)}"
+        }), 500
 
 @app.route('/api/sms', methods=['GET'])
 def get_sms():
-    # ... mevcut kodunuz aynen kalsın ...
-
-@app.route('/api/search-sms', methods=['POST'])
-def search_sms():
-    # ... mevcut kodunuz aynen kalsın ...
+    """SMS'leri listeler (test için)"""
+    try:
+        sms_list = list(db.sms_messages.find().sort('timestamp', -1).limit(10))
+        
+        for sms in sms_list:
+            sms['_id'] = str(sms['_id'])
+            sms['timestamp'] = sms['timestamp'].isoformat() if sms.get('timestamp') else None
+        
+        return jsonify({
+            "success": True,
+            "count": len(sms_list),
+            "sms_list": sms_list
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    # ... mevcut kodunuz aynen kalsın ...
+    """Backend sağlık kontrolü"""
+    try:
+        client.admin.command('ismaster')
+        db_status = "connected"
+    except:
+        db_status = "disconnected"
+    
+    return jsonify({
+        "status": "healthy",
+        "service": "Shipliyo SMS Backend & Chatbot",
+        "timestamp": datetime.now().isoformat(),
+        "database": db_status,
+        "version": "2.0.0"
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
