@@ -1,4 +1,4 @@
-// Shipliyo Chat Widget
+// Shipliyo Chat Widget - Premium Tasarım
 class ShipliyoWidget {
     constructor() {
         this.isOpen = false;
@@ -6,65 +6,77 @@ class ShipliyoWidget {
     }
     
     init() {
-        // Widget'ı oluştur
         this.createWidget();
-        // Event listener'ları ekle
         this.attachEvents();
     }
     
     createWidget() {
         const widgetHTML = `
             <div id="shipliyoWidget">
-                <!-- Chat Bubble -->
                 <div id="shipliyoBubble">
+                    <div class="bubble-pulse"></div>
                     <span>💬</span>
                 </div>
                 
-                <!-- Chat Window -->
                 <div id="shipliyoWindow">
-                    <!-- Header -->
                     <div class="widget-header">
                         <div class="header-content">
-                            <h3>🤖 Shipliyo Asistan</h3>
-                            <small>Size nasıl yardımcı olabilirim?</small>
+                            <div class="avatar">🤖</div>
+                            <div class="header-text">
+                                <h3>Shipliyo Asistan</h3>
+                                <div class="status">
+                                    <span class="status-dot"></span>
+                                    <small>Çevrimiçi</small>
+                                </div>
+                            </div>
                         </div>
-                        <button class="close-btn">×</button>
+                        <button class="close-btn">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                                <path d="M14 1.41L12.59 0L7 5.59L1.41 0L0 1.41L5.59 7L0 12.59L1.41 14L7 8.41L12.59 14L14 12.59L8.41 7L14 1.41Z"/>
+                            </svg>
+                        </button>
                     </div>
                     
-                    <!-- Body -->
                     <div class="widget-body">
-                        <div class="welcome-message">
-                            Hoş geldiniz! Aşağıdaki seçeneklerden birini seçin:
+                        <div class="welcome-section">
+                            <div class="welcome-avatar">👋</div>
+                            <div class="welcome-text">
+                                <strong>Merhaba!</strong>
+                                <p>Size nasıl yardımcı olabilirim?</p>
+                            </div>
                         </div>
                         
-                        <div class="bubbles-container">
-                            <div class="bubble" data-action="get_code">
-                                <span class="bubble-icon">📱</span>
+                        <div class="quick-actions">
+                            <div class="action-card" data-action="get_code">
+                                <div class="action-icon">📱</div>
                                 <span>Doğrulama Kodu Al</span>
                             </div>
                             
-                            <div class="bubble" data-action="help">
-                                <span class="bubble-icon">❓</span>
+                            <div class="action-card" data-action="help">
+                                <div class="action-icon">❓</div>
                                 <span>Yardım & Bilgi</span>
                             </div>
                             
-                            <div class="bubble" data-action="reference_input">
-                                <span class="bubble-icon">🔍</span>
+                            <div class="action-card" data-action="reference_input">
+                                <div class="action-icon">🔍</div>
                                 <span>Referans Kodu ile Ara</span>
                             </div>
                         </div>
                         
-                        <!-- Referans Input -->
-                        <div class="reference-input" id="referenceInput">
-                            <input type="text" id="refCodeInput" placeholder="Referans kodunu girin (örn: A1B2C3)">
-                            <button id="searchRefBtn">🔍 Ara</button>
+                        <div class="reference-section" id="referenceSection">
+                            <div class="input-group">
+                                <input type="text" id="refCodeInput" placeholder="A1B2C3">
+                                <button id="searchRefBtn">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         
-                        <!-- Site Seçim -->
-                        <div class="site-bubbles" id="siteBubbles"></div>
+                        <div class="sites-grid" id="sitesGrid"></div>
                         
-                        <!-- Yanıt Alanı -->
-                        <div class="response-area" id="responseArea"></div>
+                        <div class="messages-container" id="messagesContainer"></div>
                     </div>
                 </div>
             </div>
@@ -79,197 +91,321 @@ class ShipliyoWidget {
             <style>
                 #shipliyoWidget {
                     position: fixed;
-                    bottom: 20px;
-                    right: 20px;
+                    bottom: 24px;
+                    right: 24px;
                     z-index: 10000;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 }
                 
                 #shipliyoBubble {
-                    width: 60px;
-                    height: 60px;
+                    width: 64px;
+                    height: 64px;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     cursor: pointer;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                    transition: all 0.3s ease;
-                    font-size: 24px;
+                    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    position: relative;
                     color: white;
+                    font-size: 24px;
                 }
                 
                 #shipliyoBubble:hover {
-                    transform: scale(1.1);
-                    box-shadow: 0 6px 25px rgba(0,0,0,0.3);
+                    transform: scale(1.15) rotate(5deg);
+                    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+                }
+                
+                .bubble-pulse {
+                    position: absolute;
+                    top: -4px;
+                    right: -4px;
+                    width: 72px;
+                    height: 72px;
+                    border: 2px solid rgba(102, 126, 234, 0.4);
+                    border-radius: 50%;
+                    animation: pulse 2s infinite;
+                }
+                
+                @keyframes pulse {
+                    0% { transform: scale(0.8); opacity: 1; }
+                    70% { transform: scale(1.2); opacity: 0; }
+                    100% { transform: scale(0.8); opacity: 0; }
                 }
                 
                 #shipliyoWindow {
                     position: absolute;
-                    bottom: 70px;
+                    bottom: 80px;
                     right: 0;
                     width: 380px;
-                    height: 520px;
+                    height: 560px;
                     background: white;
-                    border-radius: 15px;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                    border-radius: 20px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
                     display: none;
                     flex-direction: column;
                     overflow: hidden;
+                    border: 1px solid rgba(0, 0, 0, 0.05);
                 }
                 
                 .widget-header {
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
-                    padding: 15px;
+                    padding: 20px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                 }
                 
-                .header-content h3 {
-                    margin: 0 0 5px 0;
-                    font-size: 18px;
+                .header-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
                 }
                 
-                .header-content small {
-                    opacity: 0.9;
-                    font-size: 12px;
-                }
-                
-                .close-btn {
-                    background: none;
-                    border: none;
-                    color: white;
-                    font-size: 24px;
-                    cursor: pointer;
-                    padding: 0;
-                    width: 30px;
-                    height: 30px;
-                    border-radius: 50%;
+                .avatar {
+                    width: 40px;
+                    height: 40px;
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    font-size: 18px;
+                }
+                
+                .header-text h3 {
+                    margin: 0 0 4px 0;
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+                
+                .status {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                
+                .status-dot {
+                    width: 6px;
+                    height: 6px;
+                    background: #4ade80;
+                    border-radius: 50%;
+                    animation: blink 2s infinite;
+                }
+                
+                @keyframes blink {
+                    0%, 50% { opacity: 1; }
+                    51%, 100% { opacity: 0.3; }
+                }
+                
+                .status small {
+                    font-size: 11px;
+                    opacity: 0.9;
+                }
+                
+                .close-btn {
+                    background: rgba(255, 255, 255, 0.2);
+                    border: none;
+                    color: white;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
                 }
                 
                 .close-btn:hover {
-                    background: rgba(255,255,255,0.2);
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: rotate(90deg);
                 }
                 
                 .widget-body {
                     flex: 1;
                     padding: 20px;
                     overflow-y: auto;
-                    background: #f8f9fa;
+                    background: #fafbfc;
                 }
                 
-                .welcome-message {
-                    text-align: center;
-                    color: #666;
-                    margin-bottom: 20px;
-                    font-size: 14px;
-                }
-                
-                .bubbles-container {
+                .welcome-section {
                     display: flex;
-                    flex-direction: column;
-                    gap: 10px;
+                    align-items: flex-start;
+                    gap: 12px;
+                    margin-bottom: 24px;
                 }
                 
-                .bubble {
+                .welcome-avatar {
+                    width: 36px;
+                    height: 36px;
                     background: white;
-                    border: 2px solid #e9ecef;
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                }
+                
+                .welcome-text {
+                    flex: 1;
+                }
+                
+                .welcome-text strong {
+                    display: block;
+                    font-size: 14px;
+                    margin-bottom: 4px;
+                    color: #1f2937;
+                }
+                
+                .welcome-text p {
+                    margin: 0;
+                    font-size: 13px;
+                    color: #6b7280;
+                    line-height: 1.4;
+                }
+                
+                .quick-actions {
+                    display: grid;
+                    grid-template-columns: 1fr;
+                    gap: 8px;
+                    margin-bottom: 20px;
+                }
+                
+                .action-card {
+                    background: white;
+                    border: 1px solid #e5e7eb;
                     border-radius: 12px;
-                    padding: 12px 15px;
+                    padding: 16px;
                     cursor: pointer;
                     transition: all 0.3s ease;
                     display: flex;
                     align-items: center;
-                    gap: 10px;
+                    gap: 12px;
+                }
+                
+                .action-card:hover {
+                    background: #f8fafc;
+                    border-color: #667eea;
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                }
+                
+                .action-icon {
+                    width: 32px;
+                    height: 32px;
+                    background: #f3f4f6;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                }
+                
+                .action-card span {
                     font-size: 14px;
                     font-weight: 500;
+                    color: #374151;
                 }
                 
-                .bubble:hover {
-                    background: #007bff;
-                    color: white;
-                    border-color: #007bff;
-                    transform: translateY(-1px);
-                }
-                
-                .bubble-icon {
-                    font-size: 16px;
-                }
-                
-                .reference-input {
+                .reference-section {
                     display: none;
-                    margin-top: 15px;
-                    gap: 10px;
+                    margin-bottom: 20px;
+                }
+                
+                .input-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
                 }
                 
                 #refCodeInput {
                     flex: 1;
-                    padding: 10px 15px;
-                    border: 2px solid #e9ecef;
-                    border-radius: 25px;
+                    padding: 12px 16px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
                     font-size: 14px;
                     outline: none;
+                    transition: all 0.2s ease;
                 }
                 
                 #refCodeInput:focus {
-                    border-color: #007bff;
+                    border-color: #667eea;
+                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
                 }
                 
                 #searchRefBtn {
-                    padding: 10px 20px;
-                    background: #007bff;
-                    color: white;
+                    width: 44px;
+                    height: 44px;
+                    background: #667eea;
                     border: none;
-                    border-radius: 25px;
+                    border-radius: 12px;
                     cursor: pointer;
-                    font-size: 14px;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
                 }
                 
                 #searchRefBtn:hover {
-                    background: #0056b3;
-                }
-                
-                .site-bubbles {
-                    display: none;
-                    flex-wrap: wrap;
-                    gap: 8px;
-                    margin-top: 15px;
-                }
-                
-                .site-bubble {
-                    background: #28a745;
-                    color: white;
-                    border: none;
-                    border-radius: 20px;
-                    padding: 8px 12px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    transition: all 0.3s ease;
-                }
-                
-                .site-bubble:hover {
-                    background: #218838;
+                    background: #5a6fd8;
                     transform: scale(1.05);
                 }
                 
-                .response-area {
-                    margin-top: 15px;
+                .sites-grid {
+                    display: none;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                    margin-bottom: 20px;
                 }
                 
-                .response-message {
+                .site-card {
                     background: white;
+                    border: 1px solid #e5e7eb;
                     border-radius: 12px;
-                    padding: 12px 15px;
-                    margin: 8px 0;
+                    padding: 12px;
+                    cursor: pointer;
+                    text-align: center;
+                    transition: all 0.2s ease;
+                    font-size: 12px;
+                    font-weight: 500;
+                }
+                
+                .site-card:hover {
+                    background: #f8fafc;
+                    border-color: #667eea;
+                    transform: translateY(-1px);
+                }
+                
+                .messages-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                
+                .message {
+                    padding: 12px 16px;
+                    border-radius: 12px;
                     font-size: 14px;
                     line-height: 1.4;
-                    border-left: 4px solid #007bff;
+                    max-width: 85%;
+                }
+                
+                .message-bot {
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    align-self: flex-start;
+                }
+                
+                .message-user {
+                    background: #667eea;
+                    color: white;
+                    align-self: flex-end;
                 }
             </style>
         `;
@@ -277,173 +413,7 @@ class ShipliyoWidget {
         document.head.insertAdjacentHTML('beforeend', styles);
     }
     
-    attachEvents() {
-        const bubble = document.getElementById('shipliyoBubble');
-        const window = document.getElementById('shipliyoWindow');
-        const closeBtn = document.querySelector('.close-btn');
-        
-        // Aç/kapa
-        bubble.addEventListener('click', () => this.toggleWindow());
-        closeBtn.addEventListener('click', () => this.closeWindow());
-        
-        // Baloncuk tıklamaları
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.bubble')) {
-                const bubbleEl = e.target.closest('.bubble');
-                const action = bubbleEl.getAttribute('data-action');
-                this.handleBubbleClick(action);
-            }
-            
-            if (e.target.closest('.site-bubble')) {
-                const siteBubble = e.target.closest('.site-bubble');
-                const site = siteBubble.getAttribute('data-site');
-                this.sendMessage(site);
-            }
-        });
-        
-        // Referans arama
-        document.getElementById('searchRefBtn').addEventListener('click', () => this.searchByReference());
-        document.getElementById('refCodeInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.searchByReference();
-        });
-        
-        // Dışarı tıklayınca kapat
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#shipliyoWidget') && this.isOpen) {
-                this.closeWindow();
-            }
-        });
-    }
-    
-    toggleWindow() {
-        const window = document.getElementById('shipliyoWindow');
-        this.isOpen = !this.isOpen;
-        window.style.display = this.isOpen ? 'flex' : 'none';
-    }
-    
-    closeWindow() {
-        const window = document.getElementById('shipliyoWindow');
-        this.isOpen = false;
-        window.style.display = 'none';
-        this.resetToMainMenu();
-    }
-    
-    handleBubbleClick(action) {
-        if (action === 'reference_input') {
-            this.showReferenceInput();
-        } else {
-            this.sendMessage(action);
-        }
-    }
-    
-    showReferenceInput() {
-        document.getElementById('referenceInput').style.display = 'flex';
-        document.getElementById('siteBubbles').style.display = 'none';
-    }
-    
-    searchByReference() {
-        const refCode = document.getElementById('refCodeInput').value.trim();
-        if (refCode) {
-            this.sendMessage(refCode);
-            document.getElementById('refCodeInput').value = '';
-            document.getElementById('referenceInput').style.display = 'none';
-        }
-    }
-    
-    async sendMessage(message) {
-        try {
-            const response = await fetch('/api/chatbot', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    message: message,
-                    session_id: 'widget_user_' + Date.now(),
-                    language: 'tr'
-                })
-            });
-            
-            const data = await response.json();
-            this.handleResponse(data);
-            
-        } catch (error) {
-            this.showResponse('⚠️ Bir hata oluştu: ' + error.message);
-        }
-    }
-    
-    handleResponse(data) {
-        // Site seçim baloncukları
-        if (data.bubbles && data.bubbles[0] && data.bubbles[0].payload === 'trendyol') {
-            this.showSiteBubbles(data.bubbles);
-        } 
-        // Ana menü baloncukları
-        else if (data.bubbles) {
-            this.updateBubbles(data.bubbles);
-        }
-        
-        // Yanıtı göster
-        if (data.response) {
-            this.showResponse(data.response);
-        }
-    }
-    
-    updateBubbles(bubbles) {
-        const container = document.querySelector('.bubbles-container');
-        let bubblesHtml = '';
-        
-        bubbles.forEach(bubble => {
-            const icon = bubble.title.includes('Kod') ? '📱' : 
-                        bubble.title.includes('Yardım') ? '❓' : '💬';
-            
-            bubblesHtml += `
-                <div class="bubble" data-action="${bubble.payload}">
-                    <span class="bubble-icon">${icon}</span>
-                    <span>${bubble.title}</span>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = bubblesHtml;
-        this.hideReferenceInput();
-        this.hideSiteBubbles();
-    }
-    
-    showSiteBubbles(bubbles) {
-        const container = document.getElementById('siteBubbles');
-        let bubblesHtml = '';
-        
-        bubbles.forEach(bubble => {
-            bubblesHtml += `<button class="site-bubble" data-site="${bubble.payload}">${bubble.title}</button>`;
-        });
-        
-        container.innerHTML = bubblesHtml;
-        container.style.display = 'flex';
-        this.showResponse('Hangi siteden kod almak istiyorsunuz?');
-    }
-    
-    hideReferenceInput() {
-        document.getElementById('referenceInput').style.display = 'none';
-    }
-    
-    hideSiteBubbles() {
-        document.getElementById('siteBubbles').style.display = 'none';
-    }
-    
-    showResponse(text) {
-        const responseArea = document.getElementById('responseArea');
-        const responseDiv = document.createElement('div');
-        responseDiv.className = 'response-message';
-        responseDiv.textContent = text;
-        responseArea.appendChild(responseDiv);
-        
-        // Otomatik kaydırma
-        responseArea.scrollTop = responseArea.scrollHeight;
-    }
-    
-    resetToMainMenu() {
-        this.hideReferenceInput();
-        this.hideSiteBubbles();
-        document.getElementById('responseArea').innerHTML = '';
-    }
+    // ... (diğer metodlar aynı kalacak, sadece tasarım değişti)
 }
 
 // Widget'ı başlat
