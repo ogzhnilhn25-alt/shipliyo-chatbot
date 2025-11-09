@@ -97,10 +97,7 @@ class ChatbotManager:
 
     def _looks_like_reference_code(self, message: str) -> bool:
         """Mesaj referans kodu gibi görünüyor mu?"""
-        # 4-6 haneli alfanumerik
-        if re.match(r'^[a-zA-Z0-9]{4,6}$', message):
-            return True
-        return False
+        return bool(re.match(r'^[a-zA-Z0-9]{4,6}$', message))
     
     def _handle_reference_code(self, ref_code: str, language: str) -> Dict:
         """Referans kodu ile SMS arama"""
@@ -125,7 +122,6 @@ class ChatbotManager:
                         "source": "mongodb"
                     }
             
-            # Demo fallback kaldırıldı - sadece gerçek veri
             return {
                 "success": False,
                 "response": self.response_manager.get_response('no_reference', language),
@@ -161,13 +157,12 @@ class ChatbotManager:
     def get_recent_sms_by_site(self, site: str, seconds: int = 120, language: str = 'tr') -> Dict:
         """
         Belirli siteden son X saniyedeki SMS'leri getir
-        Tüm siteler için aynı mantık - demo data yok
         """
         try:
-            print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")  # ✅ DEBUG EKLE
-            
+            print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")
+
             if not self.mongo_connected:
-                print("❌ MongoDB bağlı değil")  # ✅ DEBUG EKLE
+                print("❌ MongoDB bağlı değil")
                 return {
                     "success": False,
                     "response": self.response_manager.get_response('no_recent_sms', language).format(
@@ -178,23 +173,20 @@ class ChatbotManager:
                     "source": "mongodb_disconnected"
                 }
 
-            # MongoDB'den gerçek veri - TÜM siteler için
             time_threshold = datetime.now() - timedelta(seconds=seconds)
-            print(f"⏰ Zaman filtresi: {time_threshold}")  # ✅ DEBUG EKLE
-            
-            # Site adını SMS pattern'ine çevir
+            print(f"⏰ Zaman filtresi: {time_threshold}")
+
             site_patterns = {
                 'trendyol': r'trendyol|trend',
                 'hepsiburada': r'hepsiburada|hepsi',
                 'n11': r'n11\.com|n11',
-                'other': r''  # Diğer siteler için genel pattern
+                'other': r''
             }
-            
+
             search_pattern = site_patterns.get(site, site)
-            print(f"🔎 Search pattern: {search_pattern}")  # ✅ DEBUG EKLE
-            
+            print(f"🔎 Search pattern: {search_pattern}")
+
             if site == 'other':
-                # Diğer siteler için: trendyol, hepsiburada, n11 dışındakiler
                 query = {
                     'body': {'$not': {'$regex': r'trendyol|hepsiburada|n11', '$options': 'i'}},
                     'timestamp': {'$gte': time_threshold}
@@ -204,61 +196,55 @@ class ChatbotManager:
                     'body': {'$regex': search_pattern, '$options': 'i'},
                     'timestamp': {'$gte': time_threshold}
                 }
-            
-            print(f"📋 MongoDB Query: {query}")  # ✅ DEBUG EKLE
-            
-            recent_sms = list(self.db.sms_messages.find(query).sort('timestamp', -1).limit(10))
-            print(f"📨 Bulunan SMS sayısı: {len(recent_sms)}")  # ✅ DEBUG EKLE
-            
-            if recent_sms:
-                # SMS'leri parse et
-                parsed_sms_list = []
-                for sms in recent_sms:
-                    parsed = self.sms_parser.parse_sms(sms['body'], language)
-                    parsed_sms_list.append(parsed)
-                
-                if len(parsed_sms_list) > 1:
-                    # Birden fazla SMS bulundu, hem sayıyı hem detayları dön
-                    sms_details = [
-                        {"site": sms['site'].title(), "code": sms['verification_code'], "raw": sms.get('raw', '')}
-                        for sms in parsed_sms_list
-                    ]
-                    response_text = self.response_manager.get_response('multiple_sms_found', language).format(
-                        count=len(parsed_sms_list),
-                        seconds=seconds
-                    )
-                    return {
-                        "success": True,
-                        "response": response_text,
-                        "response_type": "list",
-                        "sms_list": sms_details,
-                        "source": "mongodb"
-                    }
-                else:
-                    # Tek SMS bulundu
-                    sms = parsed_sms_list[0]
-                    return {
-                        "success": True,
-                        "response": self.response_manager.get_response('reference_found', language).format(
-                            site=sms['site'].title(),
-                            code=sms['verification_code']
-                        ),
-                        "response_type": "direct",
-                        "data": sms,
-                        "source": "mongodb"
-                    }
 
-            # Hiç SMS bulunamadı
-            return {
-                "success": False,
-                "response": self.response_manager.get_response('no_recent_sms', language).format(
-                    site=site.title(),
+            print(f"📋 MongoDB Query: {query}")
+
+            recent_sms = list(self.db.sms_messages.find(query).sort('timestamp', -1).limit(10))
+            print(f"📨 Bulunan SMS sayısı: {len(recent_sms)}")
+
+            if not recent_sms:
+                return {
+                    "success": False,
+                    "response": self.response_manager.get_response('no_recent_sms', language).format(
+                        site=site.title(),
+                        seconds=seconds
+                    ),
+                    "response_type": "direct",
+                    "source": "mongodb"
+                }
+
+            parsed_sms_list = [self.sms_parser.parse_sms(sms['body'], language) for sms in recent_sms]
+            print(f"🔧 Parsed SMS List: {parsed_sms_list}")
+
+            if len(parsed_sms_list) == 1:
+                sms = parsed_sms_list[0]
+                return {
+                    "success": True,
+                    "response": self.response_manager.get_response('reference_found', language).format(
+                        site=sms['site'].title(),
+                        code=sms['verification_code']
+                    ),
+                    "response_type": "direct",
+                    "data": sms,
+                    "source": "mongodb"
+                }
+            else:
+                sms_details = [
+                    {"site": sms['site'].title(), "code": sms['verification_code'], "raw": sms.get('raw', '')}
+                    for sms in parsed_sms_list
+                ]
+                response_text = self.response_manager.get_response('multiple_sms_found', language).format(
+                    count=len(parsed_sms_list),
                     seconds=seconds
-                ),
-                "response_type": "direct",
-                "source": "mongodb"
-            }
-            
+                )
+                return {
+                    "success": True,
+                    "response": response_text,
+                    "response_type": "list",
+                    "sms_list": sms_details,
+                    "source": "mongodb"
+                }
+
         except Exception as e:
             print(f"❌ MongoDB sorgu hatası: {e}")
             return {
@@ -291,8 +277,9 @@ def test_chatbot():
         print(f"✅ Success: {response['success']}")
         print(f"📝 Response: {response['response']}")
         if 'bubbles' in response:
-            print(f"🫧 Bubbles: {[b['title'] for b in response['bubbles']]}")
+            print(f"🫧 Bubbles: {[b['title'] for b in response['bubbles']]}") 
         print("─" * 50)
+
 
 if __name__ == "__main__":
     test_chatbot()
