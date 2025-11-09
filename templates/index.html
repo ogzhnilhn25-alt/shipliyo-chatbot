@@ -1,23 +1,45 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Shipliyo Chatbot</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #chatbox { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
-        .user { color: blue; }
-        .bot { color: green; }
-        #input { width: 80%; }
-        #send { width: 18%; }
+        .bubble { padding: 10px; margin: 5px; background: #007bff; color: white; border-radius: 20px; cursor: pointer; display: inline-block; }
+        .chat-container { max-width: 400px; margin: 50px auto; padding: 20px; }
     </style>
 </head>
 <body>
-    <h2>Shipliyo Chatbot</h2>
-    <div id="chatbox"></div>
-    <input type="text" id="input" placeholder="Referans kodunu girin">
-    <button id="send">Gönder</button>
+    <div class="chat-container">
+        <h2>Shipliyo Chatbot</h2>
+        <div id="bubbles">
+            <div class="bubble" onclick="sendMessage('get_code')">📱 Kod Al</div>
+            <div class="bubble" onclick="sendMessage('help')">❓ Yardım</div>
+        </div>
+        <div id="response"></div>
+    </div>
 
-    <script src="/static/main.js"></script>
+    <script>
+        async function sendMessage(message) {
+            const response = await fetch('/api/chatbot', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    message: message,
+                    session_id: 'web_user',
+                    language: 'tr'
+                })
+            });
+            const data = await response.json();
+            
+            if (data.bubbles) {
+                let bubblesHtml = '';
+                data.bubbles.forEach(bubble => {
+                    bubblesHtml += `<div class="bubble" onclick="sendMessage('${bubble.payload}')">${bubble.title}</div>`;
+                });
+                document.getElementById('bubbles').innerHTML = bubblesHtml;
+            }
+            
+            document.getElementById('response').innerHTML = `<p>${data.response}</p>`;
+        }
+    </script>
 </body>
 </html>
