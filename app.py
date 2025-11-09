@@ -193,11 +193,6 @@ def health_check():
     })
 
 if __name__ == '__main__':
-    print("🚀 Shipliyo SMS Backend başlatılıyor...")
-    print("📍 Legacy Endpoint: http://localhost:5000/gateway-sms")
-    print("📍 Yeni Endpoint: http://localhost:5000/incoming-sms")
-    print("🔍 API Endpoint: http://localhost:5000/api/sms")
-    print("🏥 Health Check: http://localhost:5000/health")
-    print("─" * 60)
-    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 8000))  # 8000 yapın
+    print(f"🚀 Server starting on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)
