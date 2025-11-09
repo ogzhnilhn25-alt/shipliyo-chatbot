@@ -15,10 +15,8 @@ chatbot = ChatbotManager()
 
 @app.route('/')
 def home():
-    return jsonify({
-        "status": "Shipliyo Chatbot API", 
-        "version": "1.0.0",
-        "message": "API is running successfully!"
+    """Ana sayfa - web arayüzü"""
+    return render_template('index.html')
     })
 
 
