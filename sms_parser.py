@@ -55,27 +55,26 @@ class SMSParser:
         ]
     }
     
-    # Çok dilli doğrulama kodu pattern'leri
-    # Çok dilli doğrulama kodu pattern'leri - 5 ve 6 haneli kodlar
-VERIFICATION_PATTERNS = {
-    'tr': [
-        r'(\d{5,6})',                    # 5-6 haneli sayılar
-        r'kodu[:\s]*(\d{5,6})',          # 5-6 haneli
-        r'kod[:\s]*(\d{5,6})',           # 5-6 haneli
-        r'onay[:\s]*kodu[:\s]*(\d{5,6})' # 5-6 haneli
-    ],
-    'bg': [
-        r'(\d{5,6})',
-        r'kod[:\s]*(\d{5,6})',
-        r'potvърditelen[:\s]*kod[:\s]*(\d{5,6})'
-    ],
-    'en': [
-        r'(\d{5,6})',
-        r'code[:\s]*(\d{5,6})',
-        r'verification[:\s]*code[:\s]*(\d{5,6})',
-        r'confirm[:\s]*code[:\s]*(\d{5,6})'
-    ]
-}
+    # Çok dilli doğrulama kodu pattern'leri - 5 ve 6 haneli
+    VERIFICATION_PATTERNS = {
+        'tr': [
+            r'(\d{5,6})',                    # 5-6 haneli sayılar
+            r'kodu[:\s]*(\d{5,6})',          # 5-6 haneli
+            r'kod[:\s]*(\d{5,6})',           # 5-6 haneli
+            r'onay[:\s]*kodu[:\s]*(\d{5,6})' # 5-6 haneli
+        ],
+        'bg': [
+            r'(\d{5,6})',
+            r'kod[:\s]*(\d{5,6})',
+            r'potvърditelen[:\s]*kod[:\s]*(\d{5,6})'
+        ],
+        'en': [
+            r'(\d{5,6})',
+            r'code[:\s]*(\d{5,6})',
+            r'verification[:\s]*code[:\s]*(\d{5,6})',
+            r'confirm[:\s]*code[:\s]*(\d{5,6})'
+        ]
+    }
     
     def parse_sms(self, sms_body: str, language: str = 'tr') -> Dict:
         """
