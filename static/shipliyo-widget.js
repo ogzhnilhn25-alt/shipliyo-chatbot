@@ -709,33 +709,31 @@ class ShipliyoWidget {
 }
 
 // YENİ FONKSİYON: SMS listesini göster
+// displaySMSList fonksiyonunu güncelle
 displaySMSList(site, data) {
-    // Backend'in ne döndüğünü kontrol et
     console.log('Backend response:', data);
     
     let message = '';
     
-    if (data.smsList && data.smsList.length > 0) {
-        // SMS listesi varsa - HER BİRİNİ AYRI GÖSTER
-        message = `Son 120 saniyede ${data.smsList.length} adet ${site} SMS'i bulundu:\n\n`;
+    // Backend'in "sms_list" alanını kullan
+    if (data.sms_list && data.sms_list.length > 0) {
+        message = `Son 120 saniyede ${data.sms_list.length} adet ${site} SMS'i bulundu:\n\n`;
         
-        data.smsList.forEach((sms, index) => {
-            message += `${index + 1}. ${sms.message || sms.text}\n`;
+        data.sms_list.forEach((sms, index) => {
+            message += `${index + 1}. ${sms.message || sms.text || 'Mesaj içeriği'}\n`;
             if (sms.timestamp) {
                 message += `   🕒 ${new Date(sms.timestamp).toLocaleTimeString('tr-TR')}\n`;
             }
             message += '\n';
         });
     } else if (data.response) {
-        // Eski format (sadece sayı)
         message = data.response;
     } else {
         message = 'SMS bulunamadı.';
     }
     
     this.addMessage(message, 'bot');
-}
-    
+}    
     showHelp() {
         this.showView('chat');
         this.addMessage('Yardım istiyorum', 'user');
