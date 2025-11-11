@@ -4,6 +4,7 @@ class ShipliyoWidget {
         this.isOpen = false;
         this.isLoading = false;
         this.currentView = 'main';
+        this.viewHistory = []; // Navigation history
         this.init();
     }
     
@@ -23,6 +24,11 @@ class ShipliyoWidget {
                 <div id="shipliyoWindow">
                     <div class="widget-header">
                         <div class="header-content">
+                            <button class="back-btn" id="backBtn" style="display: none;">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                                </svg>
+                            </button>
                             <div class="avatar">🤖</div>
                             <div class="header-text">
                                 <h3>Shipliyo Asistan</h3>
@@ -60,6 +66,40 @@ class ShipliyoWidget {
                                     <div class="action-icon">❓</div>
                                     <span>Yardım & Bilgi</span>
                                 </div>
+                                
+                                <div class="action-card" data-action="reference_input">
+                                    <div class="action-icon">🔍</div>
+                                    <span>Referans Kodu ile Ara</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Site Selection View -->
+                        <div class="view-sites" id="sitesView" style="display: none;">
+                            <div class="view-header">
+                                <h3>Site Seçin</h3>
+                                <p>Doğrulama kodu almak için bir site seçin</p>
+                            </div>
+                            <div class="sites-grid" id="sitesGrid">
+                                <!-- Sites will be loaded here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Reference Input View -->
+                        <div class="view-reference" id="referenceView" style="display: none;">
+                            <div class="view-header">
+                                <h3>Referans Kodu Ara</h3>
+                                <p>Referans kodunu girerek arama yapın</p>
+                            </div>
+                            <div class="reference-section">
+                                <div class="input-group">
+                                    <input type="text" id="refCodeInput" placeholder="Referans kodunu girin...">
+                                    <button id="searchRefBtn">
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -90,6 +130,7 @@ class ShipliyoWidget {
         
         document.body.insertAdjacentHTML('beforeend', widgetHTML);
         this.injectStyles();
+        this.loadSites();
     }
     
     injectStyles() {
@@ -159,31 +200,55 @@ class ShipliyoWidget {
                 .widget-header {
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
-                    padding: 20px;
+                    padding: 16px 20px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    min-height: 60px;
                 }
                 
                 .header-content {
                     display: flex;
                     align-items: center;
                     gap: 12px;
+                    flex: 1;
                 }
                 
-                .avatar {
-                    width: 40px;
-                    height: 40px;
+                .back-btn {
                     background: rgba(255, 255, 255, 0.2);
-                    border-radius: 12px;
+                    border: none;
+                    color: white;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 18px;
+                    transition: all 0.2s ease;
+                }
+                
+                .back-btn:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                }
+                
+                .avatar {
+                    width: 36px;
+                    height: 36px;
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                }
+                
+                .header-text {
+                    flex: 1;
                 }
                 
                 .header-text h3 {
-                    margin: 0 0 4px 0;
+                    margin: 0 0 2px 0;
                     font-size: 16px;
                     font-weight: 600;
                 }
@@ -218,7 +283,7 @@ class ShipliyoWidget {
                     color: white;
                     width: 32px;
                     height: 32px;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
@@ -228,7 +293,6 @@ class ShipliyoWidget {
                 
                 .close-btn:hover {
                     background: rgba(255, 255, 255, 0.3);
-                    transform: rotate(90deg);
                 }
                 
                 .widget-body {
@@ -236,7 +300,6 @@ class ShipliyoWidget {
                     padding: 20px;
                     overflow-y: auto;
                     background: #fafbfc;
-                    position: relative;
                 }
                 
                 .welcome-section {
@@ -319,6 +382,94 @@ class ShipliyoWidget {
                     color: #374151;
                 }
                 
+                .view-header {
+                    margin-bottom: 24px;
+                }
+                
+                .view-header h3 {
+                    margin: 0 0 8px 0;
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: #1f2937;
+                }
+                
+                .view-header p {
+                    margin: 0;
+                    font-size: 14px;
+                    color: #6b7280;
+                    line-height: 1.4;
+                }
+                
+                .sites-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                }
+                
+                .site-card {
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    padding: 16px;
+                    cursor: pointer;
+                    text-align: center;
+                    transition: all 0.2s ease;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #374151;
+                }
+                
+                .site-card:hover {
+                    background: #f8fafc;
+                    border-color: #667eea;
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                }
+                
+                .reference-section {
+                    margin-top: 20px;
+                }
+                
+                .input-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                
+                #refCodeInput, #chatInput {
+                    flex: 1;
+                    padding: 12px 16px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    font-size: 14px;
+                    outline: none;
+                    transition: all 0.2s ease;
+                }
+                
+                #refCodeInput:focus, #chatInput:focus {
+                    border-color: #667eea;
+                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                }
+                
+                #searchRefBtn, #sendMessageBtn {
+                    width: 44px;
+                    height: 44px;
+                    background: #667eea;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                }
+                
+                #searchRefBtn:hover, #sendMessageBtn:hover {
+                    background: #5a6fd8;
+                    transform: scale(1.05);
+                }
+                
                 .messages-container {
                     flex: 1;
                     display: flex;
@@ -352,62 +503,10 @@ class ShipliyoWidget {
                     border-bottom-right-radius: 4px;
                 }
                 
-                .site-option {
-                    cursor: pointer !important;
-                    background: #f0f4ff !important;
-                    border: 1px solid #667eea !important;
-                    transition: all 0.2s ease;
-                }
-                
-                .site-option:hover {
-                    background: #e0e7ff !important;
-                    transform: translateX(5px);
-                }
-                
                 .chat-input-container {
                     border-top: 1px solid #e5e7eb;
                     padding-top: 16px;
                     margin-top: auto;
-                }
-                
-                .input-group {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
-                
-                #chatInput {
-                    flex: 1;
-                    padding: 12px 16px;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 12px;
-                    font-size: 14px;
-                    outline: none;
-                    transition: all 0.2s ease;
-                }
-                
-                #chatInput:focus {
-                    border-color: #667eea;
-                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-                }
-                
-                #sendMessageBtn {
-                    width: 44px;
-                    height: 44px;
-                    background: #667eea;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                }
-                
-                #sendMessageBtn:hover {
-                    background: #5a6fd8;
-                    transform: scale(1.05);
                 }
                 
                 .loading-state {
@@ -454,11 +553,25 @@ class ShipliyoWidget {
             this.closeWidget();
         });
         
+        document.getElementById('backBtn').addEventListener('click', () => {
+            this.goBack();
+        });
+        
         document.querySelectorAll('.action-card').forEach(card => {
             card.addEventListener('click', (e) => {
                 const action = e.currentTarget.dataset.action;
                 this.handleAction(action);
             });
+        });
+        
+        document.getElementById('searchRefBtn').addEventListener('click', () => {
+            this.searchReference();
+        });
+        
+        document.getElementById('refCodeInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchReference();
+            }
         });
         
         document.getElementById('sendMessageBtn').addEventListener('click', () => {
@@ -475,97 +588,153 @@ class ShipliyoWidget {
     toggleWidget() {
         this.isOpen = !this.isOpen;
         document.getElementById('shipliyoWindow').style.display = this.isOpen ? 'flex' : 'none';
+        if (this.isOpen) {
+            this.showView('main');
+        }
     }
     
     closeWidget() {
         this.isOpen = false;
         document.getElementById('shipliyoWindow').style.display = 'none';
-        this.showView('main');
+        this.viewHistory = [];
+        this.updateBackButton();
     }
     
-    showView(viewName) {
+    showView(viewName, addToHistory = true) {
+        // Tüm view'leri gizle
         document.querySelectorAll('[class^="view-"]').forEach(view => {
             view.style.display = 'none';
         });
+        
+        // İstenen view'i göster
         document.getElementById(viewName + 'View').style.display = 'block';
         this.currentView = viewName;
+        
+        // History'ye ekle (main view hariç)
+        if (addToHistory && viewName !== 'main') {
+            this.viewHistory.push(viewName);
+        }
+        
+        this.updateBackButton();
+    }
+    
+    goBack() {
+        if (this.viewHistory.length > 0) {
+            this.viewHistory.pop(); // Mevcut view'ı çıkar
+            const previousView = this.viewHistory.length > 0 ? this.viewHistory[this.viewHistory.length - 1] : 'main';
+            this.showView(previousView, false); // History'ye ekleme
+        } else {
+            this.showView('main');
+        }
+    }
+    
+    updateBackButton() {
+        const backBtn = document.getElementById('backBtn');
+        backBtn.style.display = this.viewHistory.length > 0 ? 'flex' : 'none';
     }
     
     handleAction(action) {
         console.log('Action:', action);
-        if (action === 'get_code') {
-            this.getVerificationCode();
-        } else if (action === 'help') {
-            this.showHelp();
+        switch(action) {
+            case 'get_code':
+                this.showSitesView();
+                break;
+            case 'help':
+                this.showHelp();
+                break;
+            case 'reference_input':
+                this.showReferenceView();
+                break;
         }
     }
     
-    getVerificationCode() {
+    loadSites() {
+        const sites = [
+            { name: 'Trendyol', id: 'trendyol' },
+            { name: 'Hepsiburada', id: 'hepsiburada' },
+            { name: 'n11', id: 'n11' },
+            { name: 'Diğer', id: 'other' }
+        ];
+        
+        const grid = document.getElementById('sitesGrid');
+        grid.innerHTML = '';
+        
+        sites.forEach(site => {
+            const card = document.createElement('div');
+            card.className = 'site-card';
+            card.textContent = site.name;
+            card.dataset.site = site.id;
+            card.addEventListener('click', () => {
+                this.selectSite(site.id);
+            });
+            grid.appendChild(card);
+        });
+    }
+    
+    showSitesView() {
+        this.showView('sites');
+    }
+    
+    showReferenceView() {
+        this.showView('reference');
+        document.getElementById('refCodeInput').focus();
+    }
+    
+    searchReference() {
+        const refCode = document.getElementById('refCodeInput').value.trim();
+        if (!refCode) return;
+        
         this.showChatView();
-        this.addMessage('Doğrulama kodu istiyorum', 'user');
+        this.addMessage(refCode + " referans kodu aranıyor...", 'user');
         
         fetch('/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                message: 'get_code',
+                message: refCode,
                 session_id: 'widget_user_' + Date.now(),
                 language: 'tr'
             })
         })
         .then(response => response.json())
         .then(data => {
-            if (data.bubbles && data.bubbles.length > 0) {
-                this.showSiteSelection(data.bubbles);
-            } else {
-                this.addMessage(data.response || 'Kod alınamadı', 'bot');
-            }
+            this.addMessage(data.response || 'Sonuç bulunamadı', 'bot');
         })
         .catch(error => {
-            this.addMessage('Bağlantı hatası, lütfen tekrar deneyin.', 'bot');
+            this.addMessage('Arama sırasında hata oluştu', 'bot');
         });
     }
     
-    showSiteSelection(bubbles) {
-        const container = document.getElementById('messagesContainer');
-        this.addMessage('Hangi site için kod istiyorsunuz?', 'bot');
-        
-        bubbles.forEach(bubble => {
-            const siteButton = document.createElement('div');
-            siteButton.className = 'message message-bot site-option';
-            siteButton.innerHTML = `<strong>${bubble.title}</strong>`;
-            siteButton.addEventListener('click', () => {
-                this.selectSite(bubble.payload);
-            });
-            container.appendChild(siteButton);
-        });
-        container.scrollTop = container.scrollHeight;
-    }
-    
-    selectSite(sitePayload) {
-        this.showLoading(true);
-        this.addMessage(sitePayload, 'user');
+    selectSite(site) {
+        this.showChatView();
+        this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
         
         fetch('/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                message: sitePayload,
+                message: site,
                 session_id: 'widget_user_' + Date.now(),
                 language: 'tr'
             })
         })
         .then(response => response.json())
         .then(data => {
-            this.showLoading(false);
+            // DEBUG: SMS'lerin tam detayını görelim
+            console.log('📍 Backend Response:', data);
+            if (data.sms_list && data.sms_list.length > 0) {
+                console.log('🔍 İlk SMS detayı:', data.sms_list[0]);
+                console.log('📋 Tüm SMS alanları:', Object.keys(data.sms_list[0]));
+                console.log('📦 Raw içeriği:', data.sms_list[0].raw);
+            }
             
-            // SMS LİSTELEME - TÜM SMS'LERİ GÖSTER
+            // SMS LİSTELEME
             if (data.sms_list && data.sms_list.length > 0) {
                 let message = `Son 120 saniyede ${data.sms_list.length} adet SMS bulundu:\n\n`;
                 
                 data.sms_list.forEach((sms, index) => {
-                    // NULL KONTROLÜ - code null ise raw içeriğini göster
-                    const codeDisplay = (sms.code && sms.code !== 'null') ? sms.code : (sms.raw || 'Kod bulunamadı');
+                    const codeDisplay = (sms.code && sms.code !== 'null') ? sms.code : 
+                                      (sms.raw || 'Kod bulunamadı');
                     message += `${index + 1}. 📱 Doğrulama Kodu: ${codeDisplay}\n`;
                     message += `   🌐 Site: ${sms.site}\n\n`;
                 });
@@ -578,7 +747,6 @@ class ShipliyoWidget {
             }
         })
         .catch(error => {
-            this.showLoading(false);
             this.addMessage('Hata oluştu: ' + error.message, 'bot');
         });
     }
@@ -587,13 +755,11 @@ class ShipliyoWidget {
         this.showChatView();
         this.addMessage('Yardım istiyorum', 'user');
         
-        this.addMessage('Shipliyo Asistan size şu konularda yardımcı olabilir:\n\n• Doğrulama kodlarınızı almak\n• SMS geçmişinizi görüntülemek\n• Site bazlı filtreleme yapmak\n\nBir site seçerek işleme başlayabilirsiniz.', 'bot');
+        this.addMessage('Shipliyo Asistan size şu konularda yardımcı olabilir:\n\n• Doğrulama kodlarınızı almak\n• SMS geçmişinizi görüntülemek\n• Site bazlı filtreleme yapmak\n• Referans kodları ile arama yapmak\n\nBir site seçerek işleme başlayabilirsiniz.', 'bot');
     }
     
     showChatView() {
-        this.currentView = 'chat';
-        document.getElementById('mainView').style.display = 'none';
-        document.getElementById('chatView').style.display = 'block';
+        this.showView('chat');
     }
     
     sendMessage() {
@@ -633,8 +799,6 @@ class ShipliyoWidget {
     
     showLoading(show) {
         document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
-        document.getElementById('mainView').style.display = show ? 'none' : 'block';
-        document.getElementById('chatView').style.display = show ? 'none' : (this.currentView === 'chat' ? 'block' : 'none');
     }
 }
 
