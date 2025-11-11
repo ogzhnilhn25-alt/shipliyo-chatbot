@@ -35,6 +35,11 @@ class ChatbotManager:
                 'bg': ['код', 'кодът', 'кодове', 'потвърдителен', 'искам', 'получи'],
                 'en': ['code', 'verification', 'number', 'want', 'get']
             },
+            'get_address': {
+                'tr': ['adres', 'adresi', 'teslimat', 'adresim', 'adres al'],
+        'bg': ['адрес', 'адресът', 'доставка', 'адреса ми', 'получи адрес'],
+        'en': ['address', 'delivery', 'my address', 'get address']
+    },
             'help': {
                 'tr': ['yardım', 'yardim', 'help', 'nasıl', 'ne yapabilir'],
                 'bg': ['помощ', 'помогнете', 'help', 'как', 'какво'],
@@ -65,7 +70,9 @@ class ChatbotManager:
             return self._handle_help_request(language)
         elif message in ['trendyol', 'hepsiburada', 'n11', 'other']:
             return self.get_recent_sms_by_site(message, 120, language)
-        
+        elif message == 'get_address':
+    return self._handle_address_request(language)
+
         # Eski sistemle uyumluluk
         intent = self.detect_intent(message, language)
         if intent == 'reference_code':
@@ -279,6 +286,13 @@ def test_chatbot():
         if 'bubbles' in response:
             print(f"🫧 Bubbles: {[b['title'] for b in response['bubbles']]}") 
         print("─" * 50)
+def _handle_address_request(self, language: str) -> Dict:
+    """Adres isteğini işle"""
+    return {
+        "success": True,
+        "response": "Teslimat adresiniz için lütfen telefon numaranızın son 9 hanesini girin (örn: 111222333)",
+        "response_type": "address"
+    }
 
 
 if __name__ == "__main__":
