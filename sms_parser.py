@@ -48,7 +48,7 @@ class SMSParser:
         ],
         'en': [
             r'ref[:\s]*([a-zA-Z0-9]{4,6})',
-    	    r'reference[:\s]*([a-zA-Z0-9]{4,6})',
+            r'reference[:\s]*([a-zA-Z0-9]{4,6})',
             r'code[:\s]*([a-zA-Z0-9]{4,6})',
             r'number[:\s]*([a-zA-Z0-9]{4,6})',
             r'ref[.\s]*([a-zA-Z0-9]{4,6})'
@@ -83,11 +83,13 @@ class SMSParser:
         sms_lower = sms_body.lower()
         
         return {
-            'original_body': sms_body,
+            'original_body': sms_body,  # Orijinal SMS içeriği
+            'raw': sms_body,            # RAW alanı - orijinal içerik
             'language': language,
             'site': self._detect_site(sms_lower, language),
             'ref_code': self._extract_ref_code(sms_lower, language),
             'verification_code': self._extract_verification_code(sms_lower, language),
+            'code': self._extract_verification_code(sms_lower, language),  # 'code' alanı da ekle
             'has_reference': bool(self._extract_ref_code(sms_lower, language))
         }
     
