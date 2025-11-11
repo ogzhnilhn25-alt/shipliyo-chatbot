@@ -540,261 +540,128 @@ class ShipliyoWidget {
     }
     
     toggleWidget() {
-        const window = document.getElementById('shipliyoWindow');
         this.isOpen = !this.isOpen;
-        if (this.isOpen) {
-            window.style.display = 'flex';
-            document.getElementById('shipliyoBubble').style.transform = 'scale(1.1)';
-        } else {
-            window.style.display = 'none';
-            document.getElementById('shipliyoBubble').style.transform = 'scale(1)';
-        }
+        document.getElementById('shipliyoWindow').style.display = this.isOpen ? 'flex' : 'none';
     }
     
     closeWidget() {
         this.isOpen = false;
         document.getElementById('shipliyoWindow').style.display = 'none';
-        document.getElementById('shipliyoBubble').style.transform = 'scale(1)';
-        this.showView('main');
-    }
-    
-    showView(viewName) {
-        document.querySelectorAll('[class^="view-"]').forEach(view => {
-            view.style.display = 'none';
-        });
-        document.getElementById(viewName + 'View').style.display = 'block';
-        this.currentView = viewName;
     }
     
     handleAction(action) {
-        switch(action) {
-            case 'get_code':
-                this.getVerificationCode();
-                break;
-            case 'help':
-                this.showHelp();
-                break;
-            case 'sites':
-                this.showSites();
-                break;
-            case 'reference_input':
-                this.showReferenceInput();
-                break;
+        if (action === 'get_code') {
+            this.showSiteSelection();
+        } else if (action === 'help') {
+            this.showHelp();
+        } else if (action === 'reference_input') {
+            this.showReferenceInput();
         }
+    }
+    
+    loadSites() {
+        const sites = ['Trendyol', 'Hepsiburada', 'n11', 'Other'];
+        const grid = document.getElementById('sitesGrid');
+        sites.forEach(site => {
+            const card = document.createElement('div');
+            card.className = 'site-card';
+            card.textContent = site;
+            card.dataset.site = site.toLowerCase();
+            card.addEventListener('click', () => {
+                this.selectSite(site.toLowerCase());
+            });
+            grid.appendChild(card);
+        });
+    }
+    
+    showSiteSelection() {
+        this.currentView = 'sites';
+        document.getElementById('mainView').style.display = 'block';
+        document.getElementById('chatView').style.display = 'none';
+    }
+    
+    showHelp() {
+        alert('Yardım mesajı burada gösterilecek.');
     }
     
     showReferenceInput() {
         document.getElementById('referenceSection').style.display = 'block';
-        document.getElementById('refCodeInput').focus();
     }
     
     searchReference() {
-        const refCode = document.getElementById('refCodeInput').value.trim();
-        if (!refCode) return;
-        
-        this.showLoading(true);
-        this.addMessage(refCode + " referans kodu aranıyor...", 'user');
-        
-        fetch('/api/chatbot', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                message: refCode,
-                session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            this.showLoading(false);
-            this.addMessage(data.response || 'Sonuç bulunamadı', 'bot');
-            this.showView('chat');
-        })
-        .catch(error => {
-            this.showLoading(false);
-            this.addMessage('Arama sırasında hata oluştu', 'bot');
-            this.showView('chat');
-        });
-    }
-    
-    showSites() {
-        this.showView('main');
-        document.getElementById('sitesGrid').style.display = 'grid';
-    }
-    
-    loadSites() {
-        const sites = [];
-        const grid = document.getElementById('sitesGrid');
-        if (sites.length === 0) {
-            grid.innerHTML = '<p style="text-align: center; color: #6b7280; font-size: 14px;">Hızlı erişim siteleri henüz eklenmemiş</p>';
-        } else {
-            grid.innerHTML = sites.map(site => 
-                `<a href="${site.url}" target="_blank" class="site-card">
-                    <div style="font-size: 16px; margin-bottom: 4px;">${site.icon}</div>
-                    ${site.name}
-                </a>`
-            ).join('');
+        const code = document.getElementById('refCodeInput').value.trim();
+        if (code) {
+            alert('Referans kodu: ' + code);
         }
     }
     
-    getVerificationCode() {
-        this.showLoading(true);
-        this.showView('chat');
-        this.addMessage('Doğrulama kodu istiyorum', 'user');
+    selectSite(site) {
+        // Backend'den SMS verilerini çek
+        this.showChatView();
+        this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
         
         fetch('/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                message: 'get_code',
+                message: site,
                 session_id: 'widget_user_' + Date.now(),
                 language: 'tr'
             })
         })
         .then(response => response.json())
         .then(data => {
-            this.showLoading(false);
-            if (data.bubbles && data.bubbles.length > 0) {
-                this.showSiteSelection(data.bubbles);
+            // SMS listesini göster
+            if (data.sms_list && data.sms_list.length > 0) {
+                let message = `Son 120 saniyede ${data.sms_list.length} adet ${site} SMS'i bulundu:\n\n`;
+                
+                data.sms_list.forEach((sms, index) => {
+                    message += `${index + 1}. 📱 Doğrulama Kodu: ${sms.code}\n`;
+                    message += `   🌐 Site: ${sms.site}\n\n`;
+                });
+                
+                this.addMessage(message, 'bot');
+            } else if (data.response) {
+                this.addMessage(data.response, 'bot');
             } else {
-                this.addMessage(data.response || 'Kod alınamadı', 'bot');
+                this.addMessage('SMS bulunamadı.', 'bot');
             }
         })
         .catch(error => {
-            this.showLoading(false);
-            this.addMessage('Bağlantı hatası, lütfen tekrar deneyin.', 'bot');
+            this.addMessage('Hata oluştu: ' + error.message, 'bot');
         });
     }
     
-    showSiteSelection(bubbles) {
-        const container = document.getElementById('messagesContainer');
-        this.addMessage('Hangi site için kod istiyorsunuz?', 'bot');
-        
-        bubbles.forEach(bubble => {
-            const siteButton = document.createElement('div');
-            siteButton.className = 'message message-bot site-option';
-            siteButton.innerHTML = `<strong>${bubble.title}</strong>`;
-            siteButton.addEventListener('click', () => {
-                this.selectSite(bubble.payload);
-            });
-            container.appendChild(siteButton);
-        });
-        container.scrollTop = container.scrollHeight;
-    }
-    
-    selectSite(sitePayload) {
-    this.showLoading(true);
-    this.addMessage(sitePayload, 'user');
-
-    fetch('/api/chatbot', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            message: sitePayload,
-            session_id: 'widget_user_' + Date.now(),
-            language: 'tr'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        this.showLoading(false);
-        
-        // YENİ: Backend'den gelen SMS listesini işle
-        this.displaySMSList(sitePayload, data);
-    })
-    .catch(error => {
-        this.showLoading(false);
-        this.addMessage('Hata oluştu', 'bot');
-    });
-}
-
-// YENİ FONKSİYON: SMS listesini göster
-// displaySMSList fonksiyonunu güncelle
-displaySMSList(site, data) {
-    console.log('Backend response:', data);
-    
-    let message = '';
-    
-    if (data.sms_list && data.sms_list.length > 0) {
-        message = `Son 120 saniyede ${data.sms_list.length} adet ${site} SMS'i bulundu:\n\n`;
-        
-        data.sms_list.forEach((sms, index) => {
-            // code alanını kullanıyoruz
-            message += `${index + 1}. 📱 Doğrulama Kodu: ${sms.code}\n`;
-            message += `   🌐 Site: ${sms.site}\n`;
-            message += '\n';
-        });
-    } else if (data.response) {
-        message = data.response;
-    } else {
-        message = 'SMS bulunamadı.';
-    }
-    
-    this.addMessage(message, 'bot');
-}}    showHelp() {
-        this.showView('chat');
-        this.addMessage('Yardım istiyorum', 'user');
-        
-        fetch('/api/chatbot', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                message: 'help',
-                session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            this.addMessage(data.response || 'Yardım mesajı', 'bot');
-        })
-        .catch(error => {
-            this.addMessage('Yardım sistemine ulaşılamıyor', 'bot');
-        });
+    showChatView() {
+        this.currentView = 'chat';
+        document.getElementById('mainView').style.display = 'none';
+        document.getElementById('chatView').style.display = 'block';
     }
     
     sendMessage() {
         const input = document.getElementById('chatInput');
-        const message = input.value.trim();
-        if (!message) return;
-        
-        this.addMessage(message, 'user');
-        input.value = '';
-        
-        fetch('/api/chatbot', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                message: message,
-                session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            this.addMessage(data.response || 'Anladım', 'bot');
-        })
-        .catch(error => {
-            this.addMessage('Mesajınız iletilemedi', 'bot');
-        });
+        const msg = input.value.trim();
+        if (msg) {
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
+            div.className = 'message message-user';
+            div.textContent = msg;
+            container.appendChild(div);
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+        }
     }
     
     addMessage(text, sender) {
         const container = document.getElementById('messagesContainer');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message message-${sender}`;
-        messageDiv.textContent = text;
-        container.appendChild(messageDiv);
+        const div = document.createElement('div');
+        div.className = `message message-${sender}`;
+        div.textContent = text;
+        container.appendChild(div);
         container.scrollTop = container.scrollHeight;
-    }
-    
-    showLoading(show) {
-        document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
     }
 }
 
-if (typeof window !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', function() {
-        window.shipliyoWidget = new ShipliyoWidget();
-    });
-}
+window.addEventListener('DOMContentLoaded', () => {
+    window.shipliyoWidget = new ShipliyoWidget();
+});
