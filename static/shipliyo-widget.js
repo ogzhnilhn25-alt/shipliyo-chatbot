@@ -71,10 +71,6 @@ class ShipliyoWidget {
                                     <div class="action-icon">🔍</div>
                                     <span>Referans Kodu ile Ara</span>
                                 </div>
-				<div class="action-card" data-action="get_address">
-   				    <div class="action-icon">🏠</div>
-    				<span>Teslimat Adresi Al</span>
-				</div>
                             </div>
                         </div>
                         
@@ -91,28 +87,6 @@ class ShipliyoWidget {
                         
                         <!-- Reference Input View -->
                         <div class="view-reference" id="referenceView" style="display: none;">
-			<!-- Address View -->
-			    <div class="view-address" id="addressView" style="display: none;">
-    			<div class="view-header">
-        		        <h3>Teslimat Adresi</h3>
-        		        <p>Telefon numaranızın son 9 hanesini girin</p>
-    </div>
-    
-    <div class="address-section">
-        <div class="input-group">
-            <input type="text" id="phoneInput" placeholder="Örnek: 111222333" maxlength="9">
-            <button id="getAddressBtn">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855a.5.5 0 0 0-.082.897l3.995 1.94L8 8l.209.004 4.001 1.94a.5.5 0 0 0 .898-.082L15.964.686zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178z"/>
-                </svg>
-            </button>
-        </div>
-        
-        <div class="address-result" id="addressResult" style="display: none;">
-            <!-- Adres sonucu burada gösterilecek -->
-        </div>
-    </div>
-</div>
                             <div class="view-header">
                                 <h3>Referans Kodu Ara</h3>
                                 <p>Referans kodunu girerek arama yapın</p>
@@ -671,9 +645,6 @@ class ShipliyoWidget {
             case 'reference_input':
                 this.showReferenceView();
                 break;
-	    case 'get_address':
-    		this.showAddressView();
-    	        break;
         }
     }
     
@@ -842,54 +813,6 @@ addMessage(text, sender) {
     
     showLoading(show) {
         document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
-    }
-}
-
-showAddressView() {
-    this.showView('address');
-    document.getElementById('phoneInput').focus();
-}
-
-// Telefon numarası işleme
-document.getElementById('getAddressBtn').addEventListener('click', () => {
-    this.processPhoneNumber();
-});
-
-document.getElementById('phoneInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        this.processPhoneNumber();
-    }
-});
-
-processPhoneNumber() {
-    const phoneInput = document.getElementById('phoneInput');
-    const phoneNumber = phoneInput.value.trim();
-    const resultDiv = document.getElementById('addressResult');
-    
-    if (!phoneNumber) return;
-    
-    if (phoneNumber.length === 9 && /^\d+$/.test(phoneNumber)) {
-        const fullAddress = `BG${phoneNumber} Hatip Mahallesi Fulya Sokak No: 19/A Çorlu, Tekirdağ`;
-        
-        let addressHTML = `
-            <div style="margin-bottom: 15px; font-weight: 600; color: #667eea;">TESLİMAT ADRESİNİZ:</div>
-            <div style="margin-bottom: 10px; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 8px;">${fullAddress}</div>
-            
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
-                <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇹🇷 Türkçe:</div>
-                <div>İl: Tekirdağ</div>
-                <div>İlçe: Çorlu</div>
-                <div>Mahalle: Hatip</div>
-                <div>Sokak: Fulya</div>
-                <div>Kapı No: 19/A</div>
-            </div>
-        `;
-        
-        resultDiv.innerHTML = addressHTML;
-        resultDiv.style.display = 'block';
-    } else {
-        resultDiv.innerHTML = '<div style="color: #ef4444;">Lütfen sadece 9 haneli telefon numarası girin (örn: 111222333)</div>';
-        resultDiv.style.display = 'block';
     }
 }
 
