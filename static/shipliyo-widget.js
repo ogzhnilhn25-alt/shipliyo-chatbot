@@ -683,28 +683,58 @@ class ShipliyoWidget {
     }
     
     selectSite(sitePayload) {
-        this.showLoading(true);
-        this.addMessage(sitePayload, 'user');
+    this.showLoading(true);
+    this.addMessage(sitePayload, 'user');
+
+    fetch('/api/chatbot', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            message: sitePayload,
+            session_id: 'widget_user_' + Date.now(),
+            language: 'tr'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        this.showLoading(false);
         
-        fetch('/api/chatbot', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                message: sitePayload,
-                session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            this.showLoading(false);
-            this.addMessage(data.response || 'Kod alındı', 'bot');
-        })
-        .catch(error => {
-            this.showLoading(false);
-            this.addMessage('Hata oluştu', 'bot');
+        // YENİ: Backend'den gelen SMS listesini işle
+        this.displaySMSList(sitePayload, data);
+    })
+    .catch(error => {
+        this.showLoading(false);
+        this.addMessage('Hata oluştu', 'bot');
+    });
+}
+
+// YENİ FONKSİYON: SMS listesini göster
+displaySMSList(site, data) {
+    // Backend'in ne döndüğünü kontrol et
+    console.log('Backend response:', data);
+    
+    let message = '';
+    
+    if (data.smsList && data.smsList.length > 0) {
+        // SMS listesi varsa - HER BİRİNİ AYRI GÖSTER
+        message = `Son 120 saniyede ${data.smsList.length} adet ${site} SMS'i bulundu:\n\n`;
+        
+        data.smsList.forEach((sms, index) => {
+            message += `${index + 1}. ${sms.message || sms.text}\n`;
+            if (sms.timestamp) {
+                message += `   🕒 ${new Date(sms.timestamp).toLocaleTimeString('tr-TR')}\n`;
+            }
+            message += '\n';
         });
+    } else if (data.response) {
+        // Eski format (sadece sayı)
+        message = data.response;
+    } else {
+        message = 'SMS bulunamadı.';
     }
+    
+    this.addMessage(message, 'bot');
+}
     
     showHelp() {
         this.showView('chat');
