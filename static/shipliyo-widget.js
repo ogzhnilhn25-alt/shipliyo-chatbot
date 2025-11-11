@@ -71,6 +71,11 @@ class ShipliyoWidget {
                                     <div class="action-icon">🔍</div>
                                     <span>Referans Kodu ile Ara</span>
                                 </div>
+                                
+                                <div class="action-card" data-action="get_address">
+                                    <div class="action-icon">🏠</div>
+                                    <span>Teslimat Adresi Al</span>
+                                </div>
                             </div>
                         </div>
                         
@@ -99,6 +104,29 @@ class ShipliyoWidget {
                                             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                                         </svg>
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Address View -->
+                        <div class="view-address" id="addressView" style="display: none;">
+                            <div class="view-header">
+                                <h3>Teslimat Adresi</h3>
+                                <p>Telefon numaranızın son 9 hanesini girin</p>
+                            </div>
+                            
+                            <div class="address-section">
+                                <div class="input-group">
+                                    <input type="text" id="phoneInput" placeholder="Örnek: 111222333" maxlength="9">
+                                    <button id="getAddressBtn">
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                            <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855a.5.5 0 0 0-.082.897l3.995 1.94L8 8l.209.004 4.001 1.94a.5.5 0 0 0 .898-.082L15.964.686zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <div class="address-result" id="addressResult" style="display: none;">
+                                    <!-- Adres sonucu burada gösterilecek -->
                                 </div>
                             </div>
                         </div>
@@ -436,7 +464,7 @@ class ShipliyoWidget {
                     align-items: center;
                 }
                 
-                #refCodeInput, #chatInput {
+                #refCodeInput, #chatInput, #phoneInput {
                     flex: 1;
                     padding: 12px 16px;
                     border: 1px solid #e5e7eb;
@@ -446,12 +474,12 @@ class ShipliyoWidget {
                     transition: all 0.2s ease;
                 }
                 
-                #refCodeInput:focus, #chatInput:focus {
+                #refCodeInput:focus, #chatInput:focus, #phoneInput:focus {
                     border-color: #667eea;
                     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
                 }
                 
-                #searchRefBtn, #sendMessageBtn {
+                #searchRefBtn, #sendMessageBtn, #getAddressBtn {
                     width: 44px;
                     height: 44px;
                     background: #667eea;
@@ -465,7 +493,7 @@ class ShipliyoWidget {
                     transition: all 0.2s ease;
                 }
                 
-                #searchRefBtn:hover, #sendMessageBtn:hover {
+                #searchRefBtn:hover, #sendMessageBtn:hover, #getAddressBtn:hover {
                     background: #5a6fd8;
                     transform: scale(1.05);
                 }
@@ -538,6 +566,39 @@ class ShipliyoWidget {
                     color: #6b7280;
                     font-size: 14px;
                 }
+                
+                /* Address View Stilleri */
+                .address-section {
+                    margin-top: 20px;
+                }
+                
+                .address-result {
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin-top: 16px;
+                    font-size: 14px;
+                    line-height: 1.5;
+                }
+                
+                .address-line {
+                    margin-bottom: 6px;
+                    padding: 2px 0;
+                }
+                
+                .language-section {
+                    margin-top: 12px;
+                    padding-top: 12px;
+                    border-top: 1px dashed #e5e7eb;
+                }
+                
+                .language-title {
+                    font-weight: 600;
+                    color: #667eea;
+                    margin-bottom: 8px;
+                    font-size: 13px;
+                }
             </style>
         `;
         
@@ -581,6 +642,17 @@ class ShipliyoWidget {
         document.getElementById('chatInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.sendMessage();
+            }
+        });
+        
+        // Yeni adres butonu event'leri
+        document.getElementById('getAddressBtn').addEventListener('click', () => {
+            this.processPhoneNumber();
+        });
+        
+        document.getElementById('phoneInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.processPhoneNumber();
             }
         });
     }
@@ -645,6 +717,9 @@ class ShipliyoWidget {
             case 'reference_input':
                 this.showReferenceView();
                 break;
+            case 'get_address':
+                this.showAddressView();
+                break;
         }
     }
     
@@ -680,6 +755,11 @@ class ShipliyoWidget {
         document.getElementById('refCodeInput').focus();
     }
     
+    showAddressView() {
+        this.showView('address');
+        document.getElementById('phoneInput').focus();
+    }
+    
     searchReference() {
         const refCode = document.getElementById('refCodeInput').value.trim();
         if (!refCode) return;
@@ -703,6 +783,56 @@ class ShipliyoWidget {
         .catch(error => {
             this.addMessage('Arama sırasında hata oluştu', 'bot');
         });
+    }
+    
+    processPhoneNumber() {
+        const phoneInput = document.getElementById('phoneInput');
+        const phoneNumber = phoneInput.value.trim();
+        const resultDiv = document.getElementById('addressResult');
+        
+        if (!phoneNumber) return;
+        
+        if (phoneNumber.length === 9 && /^\d+$/.test(phoneNumber)) {
+            const fullAddress = `BG${phoneNumber} Hatip Mahallesi Fulya Sokak No: 19/A Çorlu, Tekirdağ`;
+            
+            let addressHTML = `
+                <div style="margin-bottom: 15px; font-weight: 600; color: #667eea;">TESLİMAT ADRESİNİZ:</div>
+                <div style="margin-bottom: 10px; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 8px;">${fullAddress}</div>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇹🇷 Türkçe:</div>
+                    <div>İl: Tekirdağ</div>
+                    <div>İlçe: Çorlu</div>
+                    <div>Mahalle: Hatip</div>
+                    <div>Sokak: Fulya</div>
+                    <div>Kapı No: 19/A</div>
+                </div>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇬🇧 English:</div>
+                    <div>City: Tekirdağ</div>
+                    <div>District: Çorlu</div>
+                    <div>Neighborhood: Hatip</div>
+                    <div>Street: Fulya</div>
+                    <div>Building No: 19/A</div>
+                </div>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇧🇬 Български:</div>
+                    <div>Област: Tekirdağ</div>
+                    <div>Община: Çorlu</div>
+                    <div>Квартал: Hatip</div>
+                    <div>Улица: Fulya</div>
+                    <div>Номер на сграда: 19/A</div>
+                </div>
+            `;
+            
+            resultDiv.innerHTML = addressHTML;
+            resultDiv.style.display = 'block';
+        } else {
+            resultDiv.innerHTML = '<div style="color: #ef4444;">Lütfen sadece 9 haneli telefon numarası girin (örn: 111222333)</div>';
+            resultDiv.style.display = 'block';
+        }
     }
     
     selectSite(site) {
@@ -764,7 +894,7 @@ class ShipliyoWidget {
         this.showChatView();
         this.addMessage('Yardım istiyorum', 'user');
         
-        this.addMessage('Shipliyo Asistan size şu konularda yardımcı olabilir:\n\n• Doğrulama kodlarınızı almak\n• SMS geçmişinizi görüntülemek\n• Site bazlı filtreleme yapmak\n• Referans kodları ile arama yapmak\n\nBir site seçerek işleme başlayabilirsiniz.', 'bot');
+        this.addMessage('Shipliyo Asistan size şu konularda yardımcı olabilir:\n\n• Doğrulama kodlarınızı almak\n• SMS geçmişinizi görüntülemek\n• Site bazlı filtreleme yapmak\n• Referans kodları ile arama yapmak\n• Teslimat adresinizi almak\n\nBir site seçerek işleme başlayabilirsiniz.', 'bot');
     }
     
     showChatView() {
