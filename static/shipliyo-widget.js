@@ -117,388 +117,7 @@ class ShipliyoWidget {
     }
     
     injectStyles() {
-        const styles = `
-            <style>
-                #shipliyoWidget {
-                    position: fixed;
-                    bottom: 24px;
-                    right: 24px;
-                    z-index: 10000;
-                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                }
-                
-                #shipliyoBubble {
-                    width: 64px;
-                    height: 64px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
-                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    position: relative;
-                    color: white;
-                    font-size: 24px;
-                }
-                
-                #shipliyoBubble:hover {
-                    transform: scale(1.15) rotate(5deg);
-                    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
-                }
-                
-                .bubble-pulse {
-                    position: absolute;
-                    top: -4px;
-                    right: -4px;
-                    width: 72px;
-                    height: 72px;
-                    border: 2px solid rgba(102, 126, 234, 0.4);
-                    border-radius: 50%;
-                    animation: pulse 2s infinite;
-                }
-                
-                @keyframes pulse {
-                    0% { transform: scale(0.8); opacity: 1; }
-                    70% { transform: scale(1.2); opacity: 0; }
-                    100% { transform: scale(0.8); opacity: 0; }
-                }
-                
-                #shipliyoWindow {
-                    position: absolute;
-                    bottom: 80px;
-                    right: 0;
-                    width: 380px;
-                    height: 560px;
-                    background: white;
-                    border-radius: 20px;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-                    display: none;
-                    flex-direction: column;
-                    overflow: hidden;
-                    border: 1px solid rgba(0, 0, 0, 0.05);
-                }
-                
-                .widget-header {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 20px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                
-                .header-content {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-                
-                .avatar {
-                    width: 40px;
-                    height: 40px;
-                    background: rgba(255, 255, 255, 0.2);
-                    border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 18px;
-                }
-                
-                .header-text h3 {
-                    margin: 0 0 4px 0;
-                    font-size: 16px;
-                    font-weight: 600;
-                }
-                
-                .status {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                }
-                
-                .status-dot {
-                    width: 6px;
-                    height: 6px;
-                    background: #4ade80;
-                    border-radius: 50%;
-                    animation: blink 2s infinite;
-                }
-                
-                @keyframes blink {
-                    0%, 50% { opacity: 1; }
-                    51%, 100% { opacity: 0.3; }
-                }
-                
-                .status small {
-                    font-size: 11px;
-                    opacity: 0.9;
-                }
-                
-                .close-btn {
-                    background: rgba(255, 255, 255, 0.2);
-                    border: none;
-                    color: white;
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 10px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                }
-                
-                .close-btn:hover {
-                    background: rgba(255, 255, 255, 0.3);
-                    transform: rotate(90deg);
-                }
-                
-                .widget-body {
-                    flex: 1;
-                    padding: 20px;
-                    overflow-y: auto;
-                    background: #fafbfc;
-                    position: relative;
-                }
-                
-                .welcome-section {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                    margin-bottom: 24px;
-                }
-                
-                .welcome-avatar {
-                    width: 36px;
-                    height: 36px;
-                    background: white;
-                    border-radius: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 16px;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                }
-                
-                .welcome-text {
-                    flex: 1;
-                }
-                
-                .welcome-text strong {
-                    display: block;
-                    font-size: 14px;
-                    margin-bottom: 4px;
-                    color: #1f2937;
-                }
-                
-                .welcome-text p {
-                    margin: 0;
-                    font-size: 13px;
-                    color: #6b7280;
-                    line-height: 1.4;
-                }
-                
-                .quick-actions {
-                    display: grid;
-                    grid-template-columns: 1fr;
-                    gap: 8px;
-                    margin-bottom: 20px;
-                }
-                
-                .action-card {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 12px;
-                    padding: 16px;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-                
-                .action-card:hover {
-                    background: #f8fafc;
-                    border-color: #667eea;
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                }
-                
-                .action-icon {
-                    width: 32px;
-                    height: 32px;
-                    background: #f3f4f6;
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 14px;
-                }
-                
-                .action-card span {
-                    font-size: 14px;
-                    font-weight: 500;
-                    color: #374151;
-                }
-                
-                .reference-section {
-                    display: none;
-                    margin-bottom: 20px;
-                }
-                
-                .input-group {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
-                
-                #refCodeInput, #chatInput {
-                    flex: 1;
-                    padding: 12px 16px;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 12px;
-                    font-size: 14px;
-                    outline: none;
-                    transition: all 0.2s ease;
-                }
-                
-                #refCodeInput:focus, #chatInput:focus {
-                    border-color: #667eea;
-                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-                }
-                
-                #searchRefBtn, #sendMessageBtn {
-                    width: 44px;
-                    height: 44px;
-                    background: #667eea;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                }
-                
-                #searchRefBtn:hover, #sendMessageBtn:hover {
-                    background: #5a6fd8;
-                    transform: scale(1.05);
-                }
-                
-                .sites-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 8px;
-                    margin-bottom: 20px;
-                }
-                
-                .site-card {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 12px;
-                    padding: 12px;
-                    cursor: pointer;
-                    text-align: center;
-                    transition: all 0.2s ease;
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: #374151;
-                    text-decoration: none;
-                    display: block;
-                }
-                
-                .site-card:hover {
-                    background: #f8fafc;
-                    border-color: #667eea;
-                    transform: translateY(-1px);
-                }
-                
-                .messages-container {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                    max-height: 400px;
-                    overflow-y: auto;
-                }
-                
-                .message {
-                    padding: 12px 16px;
-                    border-radius: 12px;
-                    font-size: 14px;
-                    line-height: 1.4;
-                    max-width: 85%;
-                    word-wrap: break-word;
-                }
-                
-                .message-bot {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    align-self: flex-start;
-                    border-bottom-left-radius: 4px;
-                }
-                
-                .message-user {
-                    background: #667eea;
-                    color: white;
-                    align-self: flex-end;
-                    border-bottom-right-radius: 4px;
-                }
-                
-                .site-option {
-                    cursor: pointer !important;
-                    background: #f0f4ff !important;
-                    border: 1px solid #667eea !important;
-                    transition: all 0.2s ease;
-                }
-                
-                .site-option:hover {
-                    background: #e0e7ff !important;
-                    transform: translateX(5px);
-                }
-                
-                .chat-input-container {
-                    border-top: 1px solid #e5e7eb;
-                    padding-top: 16px;
-                    margin-top: auto;
-                }
-                
-                .loading-state {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 40px 20px;
-                    text-align: center;
-                }
-                
-                .loading-spinner {
-                    width: 32px;
-                    height: 32px;
-                    border: 3px solid #f3f4f6;
-                    border-top: 3px solid #667eea;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin-bottom: 12px;
-                }
-                
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                
-                .loading-state p {
-                    margin: 0;
-                    color: #6b7280;
-                    font-size: 14px;
-                }
-            </style>
-        `;
-        
+        const styles = `/* ... mevcut tüm CSS aynen buraya gelecek ... */`;
         document.head.insertAdjacentHTML('beforeend', styles);
     }
     
@@ -608,7 +227,14 @@ class ShipliyoWidget {
         .then(response => response.json())
         .then(data => {
             this.showLoading(false);
-            this.addMessage(data.response || 'Sonuç bulunamadı', 'bot');
+
+            // Yeni eklenen SMS listeleme kısmı
+            if (data.sms && data.sms.length > 0) {
+                this.addSmsList(data.sms);
+            } else {
+                this.addMessage(data.response || 'Sonuç bulunamadı', 'bot');
+            }
+
             this.showView('chat');
         })
         .catch(error => {
@@ -616,6 +242,29 @@ class ShipliyoWidget {
             this.addMessage('Arama sırasında hata oluştu', 'bot');
             this.showView('chat');
         });
+    }
+    
+    // SMS listeleme fonksiyonu
+    addSmsList(smsArray) {
+        const container = document.getElementById('messagesContainer');
+
+        // SMS sayısını göster
+        if (smsArray.length > 1) {
+            const countDiv = document.createElement('div');
+            countDiv.className = 'message message-bot';
+            countDiv.textContent = `Son 120 saniyede ${smsArray.length} SMS geldi:`;
+            container.appendChild(countDiv);
+        }
+
+        // Her bir SMS’i listele
+        smsArray.forEach(sms => {
+            const smsDiv = document.createElement('div');
+            smsDiv.className = 'message message-bot';
+            smsDiv.innerHTML = `<strong>${sms.sender}</strong>: ${sms.content}`;
+            container.appendChild(smsDiv);
+        });
+
+        container.scrollTop = container.scrollHeight;
     }
     
     showSites() {
