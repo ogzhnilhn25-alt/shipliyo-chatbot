@@ -10,7 +10,6 @@ class ShipliyoWidget {
     init() {
         this.createWidget();
         this.attachEvents();
-        this.loadSites();
     }
     
     createWidget() {
@@ -61,30 +60,7 @@ class ShipliyoWidget {
                                     <div class="action-icon">❓</div>
                                     <span>Yardım & Bilgi</span>
                                 </div>
-                                
-                                <div class="action-card" data-action="sites">
-                                    <div class="action-icon">🌐</div>
-                                    <span>Hızlı Erişim</span>
-                                </div>
-                                
-                                <div class="action-card" data-action="reference_input">
-                                    <div class="action-icon">🔍</div>
-                                    <span>Referans Kodu ile Ara</span>
-                                </div>
                             </div>
-                            
-                            <div class="reference-section" id="referenceSection">
-                                <div class="input-group">
-                                    <input type="text" id="refCodeInput" placeholder="Referans kodunu girin...">
-                                    <button id="searchRefBtn">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="sites-grid" id="sitesGrid"></div>
                         </div>
                         
                         <!-- Chat View -->
@@ -343,79 +319,6 @@ class ShipliyoWidget {
                     color: #374151;
                 }
                 
-                .reference-section {
-                    display: none;
-                    margin-bottom: 20px;
-                }
-                
-                .input-group {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
-                
-                #refCodeInput, #chatInput {
-                    flex: 1;
-                    padding: 12px 16px;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 12px;
-                    font-size: 14px;
-                    outline: none;
-                    transition: all 0.2s ease;
-                }
-                
-                #refCodeInput:focus, #chatInput:focus {
-                    border-color: #667eea;
-                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-                }
-                
-                #searchRefBtn, #sendMessageBtn {
-                    width: 44px;
-                    height: 44px;
-                    background: #667eea;
-                    border: none;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                }
-                
-                #searchRefBtn:hover, #sendMessageBtn:hover {
-                    background: #5a6fd8;
-                    transform: scale(1.05);
-                }
-                
-                .sites-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 8px;
-                    margin-bottom: 20px;
-                }
-                
-                .site-card {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 12px;
-                    padding: 12px;
-                    cursor: pointer;
-                    text-align: center;
-                    transition: all 0.2s ease;
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: #374151;
-                    text-decoration: none;
-                    display: block;
-                }
-                
-                .site-card:hover {
-                    background: #f8fafc;
-                    border-color: #667eea;
-                    transform: translateY(-1px);
-                }
-                
                 .messages-container {
                     flex: 1;
                     display: flex;
@@ -465,6 +368,46 @@ class ShipliyoWidget {
                     border-top: 1px solid #e5e7eb;
                     padding-top: 16px;
                     margin-top: auto;
+                }
+                
+                .input-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                
+                #chatInput {
+                    flex: 1;
+                    padding: 12px 16px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    font-size: 14px;
+                    outline: none;
+                    transition: all 0.2s ease;
+                }
+                
+                #chatInput:focus {
+                    border-color: #667eea;
+                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                }
+                
+                #sendMessageBtn {
+                    width: 44px;
+                    height: 44px;
+                    background: #667eea;
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                }
+                
+                #sendMessageBtn:hover {
+                    background: #5a6fd8;
+                    transform: scale(1.05);
                 }
                 
                 .loading-state {
@@ -518,16 +461,6 @@ class ShipliyoWidget {
             });
         });
         
-        document.getElementById('searchRefBtn').addEventListener('click', () => {
-            this.searchReference();
-        });
-        
-        document.getElementById('refCodeInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.searchReference();
-            }
-        });
-        
         document.getElementById('sendMessageBtn').addEventListener('click', () => {
             this.sendMessage();
         });
@@ -547,76 +480,93 @@ class ShipliyoWidget {
     closeWidget() {
         this.isOpen = false;
         document.getElementById('shipliyoWindow').style.display = 'none';
+        this.showView('main');
+    }
+    
+    showView(viewName) {
+        document.querySelectorAll('[class^="view-"]').forEach(view => {
+            view.style.display = 'none';
+        });
+        document.getElementById(viewName + 'View').style.display = 'block';
+        this.currentView = viewName;
     }
     
     handleAction(action) {
+        console.log('Action:', action);
         if (action === 'get_code') {
-            this.showSiteSelection();
+            this.getVerificationCode();
         } else if (action === 'help') {
             this.showHelp();
-        } else if (action === 'reference_input') {
-            this.showReferenceInput();
         }
     }
     
-    loadSites() {
-        const sites = ['Trendyol', 'Hepsiburada', 'n11', 'Other'];
-        const grid = document.getElementById('sitesGrid');
-        sites.forEach(site => {
-            const card = document.createElement('div');
-            card.className = 'site-card';
-            card.textContent = site;
-            card.dataset.site = site.toLowerCase();
-            card.addEventListener('click', () => {
-                this.selectSite(site.toLowerCase());
-            });
-            grid.appendChild(card);
-        });
-    }
-    
-    showSiteSelection() {
-        this.currentView = 'sites';
-        document.getElementById('mainView').style.display = 'block';
-        document.getElementById('chatView').style.display = 'none';
-    }
-    
-    showHelp() {
-        alert('Yardım mesajı burada gösterilecek.');
-    }
-    
-    showReferenceInput() {
-        document.getElementById('referenceSection').style.display = 'block';
-    }
-    
-    searchReference() {
-        const code = document.getElementById('refCodeInput').value.trim();
-        if (code) {
-            alert('Referans kodu: ' + code);
-        }
-    }
-    
-    selectSite(site) {
-        // Backend'den SMS verilerini çek
+    getVerificationCode() {
         this.showChatView();
-        this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
+        this.addMessage('Doğrulama kodu istiyorum', 'user');
         
         fetch('/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                message: site,
+                message: 'get_code',
                 session_id: 'widget_user_' + Date.now(),
                 language: 'tr'
             })
         })
         .then(response => response.json())
         .then(data => {
-            // SMS listesini göster
+            if (data.bubbles && data.bubbles.length > 0) {
+                this.showSiteSelection(data.bubbles);
+            } else {
+                this.addMessage(data.response || 'Kod alınamadı', 'bot');
+            }
+        })
+        .catch(error => {
+            this.addMessage('Bağlantı hatası, lütfen tekrar deneyin.', 'bot');
+        });
+    }
+    
+    showSiteSelection(bubbles) {
+        const container = document.getElementById('messagesContainer');
+        this.addMessage('Hangi site için kod istiyorsunuz?', 'bot');
+        
+        bubbles.forEach(bubble => {
+            const siteButton = document.createElement('div');
+            siteButton.className = 'message message-bot site-option';
+            siteButton.innerHTML = `<strong>${bubble.title}</strong>`;
+            siteButton.addEventListener('click', () => {
+                this.selectSite(bubble.payload);
+            });
+            container.appendChild(siteButton);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    selectSite(sitePayload) {
+        this.showLoading(true);
+        this.addMessage(sitePayload, 'user');
+        
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: sitePayload,
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            this.showLoading(false);
+            
+            // SMS LİSTELEME - TÜM SMS'LERİ GÖSTER
             if (data.sms_list && data.sms_list.length > 0) {
-                let message = `Son 120 saniyede ${data.sms_list.length} adet ${site} SMS'i bulundu:\n\n`;
+                let message = `Son 120 saniyede ${data.sms_list.length} adet SMS bulundu:\n\n`;
                 
                 data.sms_list.forEach((sms, index) => {
-                    message += `${index + 1}. 📱 Doğrulama Kodu: ${sms.code}\n`;
+                    // NULL KONTROLÜ - code null ise raw içeriğini göster
+                    const codeDisplay = (sms.code && sms.code !== 'null') ? sms.code : (sms.raw || 'Kod bulunamadı');
+                    message += `${index + 1}. 📱 Doğrulama Kodu: ${codeDisplay}\n`;
                     message += `   🌐 Site: ${sms.site}\n\n`;
                 });
                 
@@ -628,8 +578,16 @@ class ShipliyoWidget {
             }
         })
         .catch(error => {
+            this.showLoading(false);
             this.addMessage('Hata oluştu: ' + error.message, 'bot');
         });
+    }
+    
+    showHelp() {
+        this.showChatView();
+        this.addMessage('Yardım istiyorum', 'user');
+        
+        this.addMessage('Shipliyo Asistan size şu konularda yardımcı olabilir:\n\n• Doğrulama kodlarınızı almak\n• SMS geçmişinizi görüntülemek\n• Site bazlı filtreleme yapmak\n\nBir site seçerek işleme başlayabilirsiniz.', 'bot');
     }
     
     showChatView() {
@@ -640,25 +598,43 @@ class ShipliyoWidget {
     
     sendMessage() {
         const input = document.getElementById('chatInput');
-        const msg = input.value.trim();
-        if (msg) {
-            const container = document.getElementById('messagesContainer');
-            const div = document.createElement('div');
-            div.className = 'message message-user';
-            div.textContent = msg;
-            container.appendChild(div);
-            input.value = '';
-            container.scrollTop = container.scrollHeight;
-        }
+        const message = input.value.trim();
+        if (!message) return;
+        
+        this.addMessage(message, 'user');
+        input.value = '';
+        
+        fetch('/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: message,
+                session_id: 'widget_user_' + Date.now(),
+                language: 'tr'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            this.addMessage(data.response || 'Anladım', 'bot');
+        })
+        .catch(error => {
+            this.addMessage('Mesajınız iletilemedi', 'bot');
+        });
     }
     
     addMessage(text, sender) {
         const container = document.getElementById('messagesContainer');
-        const div = document.createElement('div');
-        div.className = `message message-${sender}`;
-        div.textContent = text;
-        container.appendChild(div);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${sender}`;
+        messageDiv.textContent = text;
+        container.appendChild(messageDiv);
         container.scrollTop = container.scrollHeight;
+    }
+    
+    showLoading(show) {
+        document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
+        document.getElementById('mainView').style.display = show ? 'none' : 'block';
+        document.getElementById('chatView').style.display = show ? 'none' : (this.currentView === 'chat' ? 'block' : 'none');
     }
 }
 
