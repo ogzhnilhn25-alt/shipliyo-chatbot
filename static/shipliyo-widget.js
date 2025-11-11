@@ -593,7 +593,7 @@ class ShipliyoWidget {
         if (!refCode) return;
         
         this.showLoading(true);
-        this.addMessage("${refCode}" referans kodu aranıyor..., 'user');
+        this.addMessage(refCode + " referans kodu aranıyor...", 'user');
         
         fetch('/api/chatbot', {
             method: 'POST',
