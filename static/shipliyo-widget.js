@@ -706,50 +706,59 @@ class ShipliyoWidget {
     }
     
     selectSite(site) {
-        this.showChatView();
-        this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
+    this.showChatView();
+    this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
+    
+    fetch('/api/chatbot', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            message: site,
+            session_id: 'widget_user_' + Date.now(),
+            language: 'tr'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        this.showLoading(false);
         
-        fetch('/api/chatbot', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                message: site,
-                session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // DEBUG: SMS'lerin tam detayını görelim
-            console.log('📍 Backend Response:', data);
-            if (data.sms_list && data.sms_list.length > 0) {
-                console.log('🔍 İlk SMS detayı:', data.sms_list[0]);
-                console.log('📋 Tüm SMS alanları:', Object.keys(data.sms_list[0]));
-                console.log('📦 Raw içeriği:', data.sms_list[0].raw);
-            }
+        // DEBUG: DETAYLI LOG
+        console.log('🔍 DEBUG SMS VERİSİ:');
+        console.log('📍 Backend Response:', data);
+        if (data.sms_list && data.sms_list.length > 0) {
+            console.log('📦 İlk SMS raw:', data.sms_list[0].raw);
+            console.log('🔢 İlk SMS code:', data.sms_list[0].code);
+            console.log('🏷️ İlk SMS site:', data.sms_list[0].site);
+        }
+        
+        // SMS LİSTELEME - YENİ FORMAT
+        if (data.sms_list && data.sms_list.length > 0) {
+            let message = `Son 120 saniyede ${data.sms_list.length} adet SMS bulundu:\n\n`;
             
-            // SMS LİSTELEME
-            if (data.sms_list && data.sms_list.length > 0) {
-                let message = `Son 120 saniyede ${data.sms_list.length} adet SMS bulundu:\n\n`;
+            data.sms_list.forEach((sms, index) => {
+                // RAW İÇİNDEN KOD ÇIKAR
+                let codeDisplay = sms.code;
+                if (!codeDisplay && sms.raw) {
+                    // Raw içinden 4-6 haneli sayıları çıkar
+                    const codeMatch = sms.raw.match(/\b\d{4,6}\b/);
+                    codeDisplay = codeMatch ? codeMatch[0] : sms.raw;
+                }
                 
-                data.sms_list.forEach((sms, index) => {
-                    const codeDisplay = (sms.code && sms.code !== 'null') ? sms.code : 
-                                      (sms.raw || 'Kod bulunamadı');
-                    message += `${index + 1}. 📱 Doğrulama Kodu: ${codeDisplay}\n`;
-                    message += `   🌐 Site: ${sms.site}\n\n`;
-                });
-                
-                this.addMessage(message, 'bot');
-            } else if (data.response) {
-                this.addMessage(data.response, 'bot');
-            } else {
-                this.addMessage('SMS bulunamadı.', 'bot');
-            }
-        })
-        .catch(error => {
-            this.addMessage('Hata oluştu: ' + error.message, 'bot');
-        });
-    }
+                // YENİ FORMAT: Her SMS için tek satır
+                message += `${index + 1}. 📱 ${codeDisplay}\n`;
+            });
+            
+            this.addMessage(message, 'bot');
+        } else if (data.response) {
+            this.addMessage(data.response, 'bot');
+        } else {
+            this.addMessage('SMS bulunamadı.', 'bot');
+        }
+    })
+    .catch(error => {
+        this.addMessage('Hata oluştu: ' + error.message, 'bot');
+    });
+}
     
     showHelp() {
         this.showChatView();
