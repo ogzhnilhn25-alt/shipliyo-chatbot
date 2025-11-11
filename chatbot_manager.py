@@ -71,7 +71,7 @@ class ChatbotManager:
         elif message in ['trendyol', 'hepsiburada', 'n11', 'other']:
             return self.get_recent_sms_by_site(message, 120, language)
         elif message == 'get_address':
-    return self._handle_address_request(language)
+            return self._handle_address_request(language)
 
         # Eski sistemle uyumluluk
         intent = self.detect_intent(message, language)
