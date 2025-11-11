@@ -713,14 +713,22 @@ class ShipliyoWidget {
 displaySMSList(site, data) {
     console.log('Backend response:', data);
     
+    // SMS'lerin detaylı yapısını görmek için
+    if (data.sms_list && data.sms_list.length > 0) {
+        console.log('İlk SMS detayı:', data.sms_list[0]);
+        console.log('Tüm SMS alanları:', Object.keys(data.sms_list[0]));
+    }
+    
     let message = '';
     
-    // Backend'in "sms_list" alanını kullan
     if (data.sms_list && data.sms_list.length > 0) {
         message = `Son 120 saniyede ${data.sms_list.length} adet ${site} SMS'i bulundu:\n\n`;
         
         data.sms_list.forEach((sms, index) => {
-            message += `${index + 1}. ${sms.message || sms.text || 'Mesaj içeriği'}\n`;
+            // Hangi alanları kullanabileceğimizi görmek için
+            const smsContent = sms.message || sms.text || sms.content || sms.body || JSON.stringify(sms);
+            message += `${index + 1}. ${smsContent}\n`;
+            
             if (sms.timestamp) {
                 message += `   🕒 ${new Date(sms.timestamp).toLocaleTimeString('tr-TR')}\n`;
             }
@@ -733,8 +741,7 @@ displaySMSList(site, data) {
     }
     
     this.addMessage(message, 'bot');
-}    
-    showHelp() {
+}    showHelp() {
         this.showView('chat');
         this.addMessage('Yardım istiyorum', 'user');
         
