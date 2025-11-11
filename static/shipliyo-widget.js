@@ -797,14 +797,19 @@ class ShipliyoWidget {
         });
     }
     
-    addMessage(text, sender) {
-        const container = document.getElementById('messagesContainer');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message message-${sender}`;
-        messageDiv.textContent = text;
-        container.appendChild(messageDiv);
-        container.scrollTop = container.scrollHeight;
-    }
+    // addMessage fonksiyonunu değiştirelim:
+addMessage(text, sender) {
+    const container = document.getElementById('messagesContainer');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message message-${sender}`;
+    
+    // Newline karakterlerini <br> ile değiştir
+    const formattedText = text.replace(/\n/g, '<br>');
+    messageDiv.innerHTML = formattedText;
+    
+    container.appendChild(messageDiv);
+    container.scrollTop = container.scrollHeight;
+}
     
     showLoading(show) {
         document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
