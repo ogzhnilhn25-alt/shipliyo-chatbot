@@ -3,7 +3,7 @@ import os
 from sms_parser import SMSParser
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from pymongo import MongoClient
+import psycopg2
 from response_manager import ResponseManager
 
 class ChatbotManager:
@@ -11,18 +11,39 @@ class ChatbotManager:
         self.sms_parser = SMSParser()
         self.response_manager = ResponseManager()
         
-        # MongoDB Connection - Heroku environment variable'dan al
-        mongodb_uri = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
+        # PostgreSQL Connection - Railway environment variable'dan al
+        self.db_connected = False
         
         try:
-            self.mongo_client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
-            self.db = self.mongo_client.shipliyo_sms
-            self.mongo_client.admin.command('ismaster')
-            self.mongo_connected = True
-            print("✅ MongoDB'ye bağlandı")
+            self.db_connection = self.get_db_connection()
+            if self.db_connection:
+                self.db_connection.close()
+                self.db_connected = True
+                print("✅ PostgreSQL'e bağlandı")
         except Exception as e:
-            print(f"❌ MongoDB bağlantı hatası: {e}")
-            self.mongo_connected = False
+            print(f"❌ PostgreSQL bağlantı hatası: {e}")
+            self.db_connected = False
+
+    def get_db_connection(self):
+        """PostgreSQL bağlantısı oluştur"""
+        try:
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                print("❌ DATABASE_URL environment variable bulunamadı")
+                return None
+            
+            # SSL modunu zorla
+            if "sslmode" not in database_url:
+                if "?" in database_url:
+                    database_url += "&sslmode=require"
+                else:
+                    database_url += "?sslmode=require"
+            
+            conn = psycopg2.connect(database_url)
+            return conn
+        except Exception as e:
+            print(f"❌ PostgreSQL bağlantı hatası: {e}")
+            return None
 
     def detect_intent(self, message: str, language: str) -> str:
         """Mesajın intent'ini tespit eder"""
@@ -37,9 +58,9 @@ class ChatbotManager:
             },
             'get_address': {
                 'tr': ['adres', 'adresi', 'teslimat', 'adresim', 'adres al'],
-        'bg': ['адрес', 'адресът', 'доставка', 'адреса ми', 'получи адрес'],
-        'en': ['address', 'delivery', 'my address', 'get address']
-    },
+                'bg': ['адрес', 'адресът', 'доставка', 'адреса ми', 'получи адрес'],
+                'en': ['address', 'delivery', 'my address', 'get address']
+            },
             'help': {
                 'tr': ['yardım', 'yardim', 'help', 'nasıl', 'ne yapabilir'],
                 'bg': ['помощ', 'помогнете', 'help', 'как', 'какво'],
@@ -109,35 +130,48 @@ class ChatbotManager:
     def _handle_reference_code(self, ref_code: str, language: str) -> Dict:
         """Referans kodu ile SMS arama"""
         try:
-            if self.mongo_connected:
+            if self.db_connected:
                 time_threshold = datetime.now() - timedelta(hours=2)
-                found_sms = self.db.sms_messages.find_one({
-                    'body': {'$regex': ref_code, '$options': 'i'},
-                    'timestamp': {'$gte': time_threshold}
-                })
                 
-                if found_sms:
-                    parsed_sms = self.sms_parser.parse_sms(found_sms['body'], language)
-                    return {
-                        "success": True,
-                        "response": self.response_manager.get_response('reference_found', language).format(
-                            site=parsed_sms['site'].title(),
-                            code=parsed_sms['verification_code']
-                        ),
-                        "response_type": "direct",
-                        "data": parsed_sms,
-                        "source": "mongodb"
-                    }
+                conn = self.get_db_connection()
+                if conn:
+                    cur = conn.cursor()
+                    # PostgreSQL LIKE sorgusu
+                    cur.execute(
+                        "SELECT * FROM sms_messages WHERE body ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 1",
+                        (f'%{ref_code}%', time_threshold)
+                    )
+                    found_sms = cur.fetchone()
+                    cur.close()
+                    conn.close()
+                    
+                    if found_sms:
+                        # PostgreSQL sonucunu dictionary'ye çevir
+                        sms_dict = {
+                            'body': found_sms[2],  # body sütunu
+                            'timestamp': found_sms[3]  # timestamp sütunu
+                        }
+                        parsed_sms = self.sms_parser.parse_sms(sms_dict['body'], language)
+                        return {
+                            "success": True,
+                            "response": self.response_manager.get_response('reference_found', language).format(
+                                site=parsed_sms['site'].title(),
+                                code=parsed_sms['verification_code']
+                            ),
+                            "response_type": "direct",
+                            "data": parsed_sms,
+                            "source": "postgresql"
+                        }
             
             return {
                 "success": False,
                 "response": self.response_manager.get_response('no_reference', language),
                 "response_type": "direct",
-                "source": "mongodb"
+                "source": "postgresql"
             }
                 
         except Exception as e:
-            print(f"❌ MongoDB sorgu hatası: {e}")
+            print(f"❌ PostgreSQL sorgu hatası: {e}")
             return {
                 "success": False,
                 "response": self.response_manager.get_response('no_reference', language),
@@ -152,14 +186,23 @@ class ChatbotManager:
             "response": self.response_manager.get_help_response(language),
             "response_type": "direct"
         }
-    
-    def _handle_unknown_message(self, message: str, language: str) -> Dict:
-        """Bilinmeyen mesaj için yanıt"""
+
+    def _handle_address_request(self, language: str) -> Dict:
+        """Adres isteğini işle"""
         return {
-            "success": False,
-            "response": self.response_manager.get_response('unknown_message', language),
-            "response_type": "direct"
+            "success": True,
+            "response": self._get_address_response(language),
+            "response_type": "address"
         }
+
+    def _get_address_response(self, language: str) -> str:
+        """Dillere göre adres response'u"""
+        responses = {
+            'tr': "Teslimat adresiniz için lütfen telefon numaranızın son 9 hanesini girin (örn: 111222333)",
+            'en': "For your delivery address, please enter the last 9 digits of your phone number (eg: 111222333)", 
+            'bg': "За вашия адрес за доставка, моля въведете последните 9 цифри от телефонния си номер (напр: 111222333)"
+        }
+        return responses.get(language, responses['tr'])
     
     def get_recent_sms_by_site(self, site: str, seconds: int = 120, language: str = 'tr') -> Dict:
         """
@@ -168,8 +211,8 @@ class ChatbotManager:
         try:
             print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")
 
-            if not self.mongo_connected:
-                print("❌ MongoDB bağlı değil")
+            if not self.db_connected:
+                print("❌ PostgreSQL bağlı değil")
                 return {
                     "success": False,
                     "response": self.response_manager.get_response('no_recent_sms', language).format(
@@ -177,36 +220,50 @@ class ChatbotManager:
                         seconds=seconds
                     ),
                     "response_type": "direct",
-                    "source": "mongodb_disconnected"
+                    "source": "postgresql_disconnected"
                 }
 
             time_threshold = datetime.now() - timedelta(seconds=seconds)
             print(f"⏰ Zaman filtresi: {time_threshold}")
 
-            site_patterns = {
-                'trendyol': r'trendyol|trend',
-                'hepsiburada': r'hepsiburada|hepsi',
-                'n11': r'n11\.com|n11',
-                'other': r''
-            }
+            conn = self.get_db_connection()
+            if not conn:
+                return {
+                    "success": False,
+                    "response": self.response_manager.get_response('no_recent_sms', language).format(
+                        site=site.title(),
+                        seconds=seconds
+                    ),
+                    "response_type": "direct",
+                    "source": "postgresql"
+                }
 
-            search_pattern = site_patterns.get(site, site)
-            print(f"🔎 Search pattern: {search_pattern}")
-
+            cur = conn.cursor()
+            
             if site == 'other':
-                query = {
-                    'body': {'$not': {'$regex': r'trendyol|hepsiburada|n11', '$options': 'i'}},
-                    'timestamp': {'$gte': time_threshold}
-                }
+                # Diğer siteler için (trendyol, hepsiburada, n11 hariç)
+                cur.execute(
+                    "SELECT * FROM sms_messages WHERE body NOT ILIKE %s AND body NOT ILIKE %s AND body NOT ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 10",
+                    ('%trendyol%', '%hepsiburada%', '%n11%', time_threshold)
+                )
             else:
-                query = {
-                    'body': {'$regex': search_pattern, '$options': 'i'},
-                    'timestamp': {'$gte': time_threshold}
+                # Belirli site için
+                site_patterns = {
+                    'trendyol': '%trendyol%',
+                    'hepsiburada': '%hepsiburada%', 
+                    'n11': '%n11%'
                 }
+                search_pattern = site_patterns.get(site, f'%{site}%')
+                
+                cur.execute(
+                    "SELECT * FROM sms_messages WHERE body ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 10",
+                    (search_pattern, time_threshold)
+                )
 
-            print(f"📋 MongoDB Query: {query}")
+            recent_sms = cur.fetchall()
+            cur.close()
+            conn.close()
 
-            recent_sms = list(self.db.sms_messages.find(query).sort('timestamp', -1).limit(10))
             print(f"📨 Bulunan SMS sayısı: {len(recent_sms)}")
 
             if not recent_sms:
@@ -217,10 +274,19 @@ class ChatbotManager:
                         seconds=seconds
                     ),
                     "response_type": "direct",
-                    "source": "mongodb"
+                    "source": "postgresql"
                 }
 
-            parsed_sms_list = [self.sms_parser.parse_sms(sms['body'], language) for sms in recent_sms]
+            # PostgreSQL sonuçlarını dictionary'ye çevir
+            parsed_sms_list = []
+            for sms in recent_sms:
+                sms_dict = {
+                    'body': sms[2],  # body sütunu
+                    'timestamp': sms[3]  # timestamp sütunu
+                }
+                parsed_sms = self.sms_parser.parse_sms(sms_dict['body'], language)
+                parsed_sms_list.append(parsed_sms)
+
             print(f"🔧 Parsed SMS List: {parsed_sms_list}")
 
             if len(parsed_sms_list) == 1:
@@ -233,7 +299,7 @@ class ChatbotManager:
                     ),
                     "response_type": "direct",
                     "data": sms,
-                    "source": "mongodb"
+                    "source": "postgresql"
                 }
             else:
                 sms_details = [
@@ -249,11 +315,11 @@ class ChatbotManager:
                     "response": response_text,
                     "response_type": "list",
                     "sms_list": sms_details,
-                    "source": "mongodb"
+                    "source": "postgresql"
                 }
 
         except Exception as e:
-            print(f"❌ MongoDB sorgu hatası: {e}")
+            print(f"❌ PostgreSQL sorgu hatası: {e}")
             return {
                 "success": False,
                 "response": self.response_manager.get_response('no_recent_sms', language).format(
@@ -286,30 +352,6 @@ def test_chatbot():
         if 'bubbles' in response:
             print(f"🫧 Bubbles: {[b['title'] for b in response['bubbles']]}") 
         print("─" * 50)
-def _handle_address_request(self, language: str) -> Dict:
-    """Adres isteğini işle"""
-    return {
-        "success": True,
-        "response": "Teslimat adresiniz için lütfen telefon numaranızın son 9 hanesini girin (örn: 111222333)",
-        "response_type": "address"
-    }
-
-def _handle_address_request(self, language: str) -> Dict:
-    """Adres isteğini işle"""
-    return {
-        "success": True,
-        "response": self._get_address_response(language),
-        "response_type": "address"
-    }
-
-def _get_address_response(self, language: str) -> str:
-    """Dillere göre adres response'u"""
-    responses = {
-        'tr': "Teslimat adresiniz için lütfen telefon numaranızın son 9 hanesini girin (örn: 111222333)",
-        'en': "For your delivery address, please enter the last 9 digits of your phone number (eg: 111222333)", 
-        'bg': "За вашия адрес за доставка, моля въведете последните 9 цифри от телефонния си номер (напр: 111222333)"
-    }
-    return responses.get(language, responses['tr'])
 
 
 if __name__ == "__main__":
