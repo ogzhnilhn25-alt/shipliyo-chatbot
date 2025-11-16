@@ -1,8 +1,5 @@
-# requirements.txt'i doğru içerikle oluştur:
-@"
-Flask==2.3.3
-Flask-CORS==4.0.0
-pymongo==4.5.0
-python-dotenv==1.0.0
-gunicorn==21.2.0
-"@ | Out-File requirements.txt -Encoding utf8
+echo "Flask==2.3.3" > requirements.txt
+echo "Flask-CORS==4.0.0" >> requirements.txt
+echo "pymongo==4.5.0" >> requirements.txt
+echo "python-dotenv==1.0.0" >> requirements.txt
+echo "gunicorn==21.2.0" >> requirements.txt
