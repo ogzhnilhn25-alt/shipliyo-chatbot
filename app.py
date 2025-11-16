@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, response, render_template
 from flask_cors import CORS
 from pymongo import MongoClient
 import os
@@ -63,6 +63,13 @@ def chatbot_api():
 def chatbot_xml():
     try:
         data = request.get_json()
+        if not data:
+            return Response('''<?xml version="1.0" encoding="UTF-8"?>
+<chatbot_response>
+    <success>false</success>
+    <message>Geçersiz JSON verisi</message>
+</chatbot_response>''', mimetype='application/xml'), 400
+        
         message = data.get('message', '').strip()
         session_id = data.get('session_id', 'default_session')
         
