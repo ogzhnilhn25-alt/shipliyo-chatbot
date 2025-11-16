@@ -18,10 +18,16 @@ if not MONGO_URI:
 
 try:
     from pymongo import MongoClient
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, socketTimeoutMS=30000)
+    client = MongoClient(
+        MONGO_URI,
+        serverSelectionTimeoutMS=10000,  # 10 saniye
+        socketTimeoutMS=30000,
+        ssl=False,  # ⬅️ SSL KAPAT
+        tlsAllowInvalidCertificates=True  # ⬅️ Sertifika doğrulama KAPAT
+    )
     db = client.shipliyo_sms
-    client.admin.command("ismaster")
-    print("✅ MongoDB'ye güvenli bağlantı sağlandı")
+    client.admin.command('ismaster')
+    print("✅ MongoDB'ye BAĞLANDI (SSL kapalı)")
 except Exception as e:
     print(f"❌ MongoDB bağlantı hatası: {e}")
     client = None
