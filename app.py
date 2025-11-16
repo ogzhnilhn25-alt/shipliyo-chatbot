@@ -180,6 +180,70 @@ def health_check():
             "version": "2.2.0"
         }), 503
 
+
+@app.route('/gateway-sms', methods=['POST'])
+@apply_rate_limits(max_per_minute=30, max_per_hour=300)
+def gateway_sms():
+    try:
+        if not request.is_json:
+            return jsonify({"error": "JSON formatında veri gönderin"}), 400
+        
+        data = request.get_json()
+        print(f"📨 SMS Alındı: {data}")
+        
+        # Gerekli alanları kontrol et
+        from_number = data.get('from', '').strip()
+        body = data.get('body', '').strip()
+        device_id = data.get('deviceId', 'android_gateway')
+        
+        if not from_number or not body:
+            return jsonify({"error": "from ve body alanları zorunludur"}), 400
+        
+        # ✅ 1. PostgreSQL'e kaydet
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database bağlantı hatası"}), 500
+            
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO sms_messages 
+            (from_number, body, device_id, processed, source, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (from_number, body, device_id, False, 'android_gateway', datetime.now()))
+        conn.commit()
+        
+        # ✅ 2. Chatbot'u HEMEN tetikle
+        if chatbot:
+            try:
+                # SMS'i chatbot'a işlet
+                chatbot_response = chatbot.handle_message(body, from_number, 'tr')
+                print(f"🤖 Chatbot Yanıtı: {chatbot_response}")
+                
+                # İsteğe bağlı: Yanıtı başka bir tabloya kaydedebilirsiniz
+                cur.execute('''
+                    INSERT INTO chatbot_responses 
+                    (from_number, user_message, bot_response, timestamp)
+                    VALUES (%s, %s, %s, %s)
+                ''', (from_number, body, chatbot_response.get('response', ''), datetime.now()))
+                conn.commit()
+                
+            except Exception as e:
+                print(f"⚠️ Chatbot işleme hatası: {e}")
+        
+        cur.close()
+        conn.close()
+        
+        print(f"✅ SMS başarıyla işlendi: {from_number}")
+        return jsonify({
+            "status": "success",
+            "message": "SMS başarıyla alındı ve işlendi",
+            "processed": True
+        })
+        
+    except Exception as e:
+        print(f"❌ GATEWAY-SMS HATASI: {str(e)}")
+        return jsonify({"error": f"Sistem hatası: {str(e)}"}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     print("🔄 PostgreSQL ile Shipliyo Backend başlatılıyor...")
