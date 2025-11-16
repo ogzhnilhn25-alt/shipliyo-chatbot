@@ -294,6 +294,23 @@ def _handle_address_request(self, language: str) -> Dict:
         "response_type": "address"
     }
 
+def _handle_address_request(self, language: str) -> Dict:
+    """Adres isteğini işle"""
+    return {
+        "success": True,
+        "response": self._get_address_response(language),
+        "response_type": "address"
+    }
+
+def _get_address_response(self, language: str) -> str:
+    """Dillere göre adres response'u"""
+    responses = {
+        'tr': "Teslimat adresiniz için lütfen telefon numaranızın son 9 hanesini girin (örn: 111222333)",
+        'en': "For your delivery address, please enter the last 9 digits of your phone number (eg: 111222333)", 
+        'bg': "За вашия адрес за доставка, моля въведете последните 9 цифри от телефонния си номер (напр: 111222333)"
+    }
+    return responses.get(language, responses['tr'])
+
 
 if __name__ == "__main__":
     test_chatbot()
