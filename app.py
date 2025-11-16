@@ -182,7 +182,7 @@ def health_check():
 
 
 @app.route('/gateway-sms', methods=['POST'])
-@apply_rate_limits(max_per_minute=30, max_per_hour=300)
+# @apply_rate_limits(max_per_minute=30, max_per_hour=300)  # 🚨 GEÇİCİ OLARAK KALDIRILDI
 def gateway_sms():
     try:
         if not request.is_json:
