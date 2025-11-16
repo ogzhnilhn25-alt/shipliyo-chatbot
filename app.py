@@ -20,14 +20,13 @@ try:
     from pymongo import MongoClient
     client = MongoClient(
         MONGO_URI,
-        serverSelectionTimeoutMS=10000,  # 10 saniye
-        socketTimeoutMS=30000,
-        ssl=False,  # ⬅️ SSL KAPAT
-        tlsAllowInvalidCertificates=True  # ⬅️ Sertifika doğrulama KAPAT
+        serverSelectionTimeoutMS=10000,
+        socketTimeoutMS=30000
+        # ⬅️ SSL/TLS parametreleri YOK!
     )
     db = client.shipliyo_sms
     client.admin.command('ismaster')
-    print("✅ MongoDB'ye BAĞLANDI (SSL kapalı)")
+    print("✅ MongoDB'ye BAĞLANDI")
 except Exception as e:
     print(f"❌ MongoDB bağlantı hatası: {e}")
     client = None
