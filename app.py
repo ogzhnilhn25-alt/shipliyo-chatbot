@@ -22,6 +22,100 @@ db = client.shipliyo_sms
 # Chatbot manager
 chatbot = ChatbotManager()
 
+# Shipliyo API Routes - Qukasoft Entegrasyonu
+@app.route('/api/shipliyo/chatbot', methods=['POST'])
+def chatbot_api():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "response": "Geçersiz JSON verisi",
+                "response_type": "direct"
+            }), 400
+        
+        message = data.get('message', '').strip()
+        session_id = data.get('session_id', 'default_session')
+        language = data.get('language', 'tr')
+        
+        if not message:
+            return jsonify({
+                "success": False, 
+                "response": "Mesaj boş olamaz",
+                "response_type": "direct"
+            }), 400
+        
+        # Mevcut chatbot manager'ını kullan
+        from chatbot_manager import ChatbotManager
+        chatbot = ChatbotManager()
+        response = chatbot.handle_message(message, session_id, language)
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "response": f"API hatası: {str(e)}",
+            "response_type": "direct"
+        }), 500
+
+@app.route('/api/shipliyo/chatbot.xml', methods=['POST'])
+def chatbot_xml():
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        session_id = data.get('session_id', 'default_session')
+        
+        if not message:
+            return Response('''<?xml version="1.0" encoding="UTF-8"?>
+<chatbot_response>
+    <success>false</success>
+    <message>Mesaj boş olamaz</message>
+</chatbot_response>''', mimetype='application/xml'), 400
+        
+        from chatbot_manager import ChatbotManager
+        chatbot = ChatbotManager()
+        response = chatbot.handle_message(message, session_id, 'tr')
+        
+        # XML formatına çevir
+        xml_response = f'''<?xml version="1.0" encoding="UTF-8"?>
+<chatbot_response>
+    <success>{str(response.get('success', False)).lower()}</success>
+    <message><![CDATA[{response.get('response', '')}]]></message>
+    <response_type>{response.get('response_type', 'direct')}</response_type>
+</chatbot_response>'''
+        
+        return Response(xml_response, mimetype='application/xml')
+        
+    except Exception as e:
+        return Response(f'''<?xml version="1.0" encoding="UTF-8"?>
+<chatbot_response>
+    <success>false</success>
+    <message>API hatası: {str(e)}</message>
+</chatbot_response>''', mimetype='application/xml'), 500
+
+# Basit adres API'si (opsiyonel)
+@app.route('/api/shipliyo/address')
+def get_address():
+    phone = request.args.get('phone', '')
+    if len(phone) == 9 and phone.isdigit():
+        return jsonify({
+            "success": True,
+            "address": f"BG{phone} Hatip Mahallesi Fulya Sokak No: 19/A Çorlu, Tekirdağ",
+            "components": {
+                "city": "Tekirdağ",
+                "district": "Çorlu", 
+                "neighborhood": "Hatip Mahallesi",
+                "street": "Fulya Sokak", 
+                "building": "19/A"
+            }
+        })
+    else:
+        return jsonify({
+            "success": False, 
+            "error": "Geçersiz telefon numarası. 9 haneli numara girin."
+        }), 400
+
 # ✅ WEB ARAYÜZÜ
 @app.route('/')
 def home():
