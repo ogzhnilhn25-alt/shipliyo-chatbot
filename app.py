@@ -255,7 +255,7 @@ def health_check():
 
 @app.route('/gateway-sms', methods=['POST'])
 def gateway_sms():
-    # ✅ 1. RATE LİMİT KONTROLÜ (Fonksiyon içinde - ÇAKIŞMA YOK)
+    # ✅ 1. RATE LİMİT KONTROLÜ
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
     is_allowed, retry_after = check_rate_limit(client_ip, 30, 60)
     
@@ -273,12 +273,12 @@ def gateway_sms():
     if not request.is_json:
         return jsonify({"error": "JSON formatında veri gönderin"}), 400
     
-    # ... mevcut kodun geri kalanı DEĞİŞMEDEN
-        
-        # ✅ 4. Request Boyut Kontrolü
-        if request.content_length > 1024 * 10:  # 10KB
-            return jsonify({"error": "İstek boyutu çok büyük"}), 413
-        
+    # ✅ 4. Request Boyut Kontrolü
+    if request.content_length > 1024 * 10:  # 10KB
+        return jsonify({"error": "İstek boyutu çok büyük"}), 413
+    
+    # ✅ TRY BLOĞU EKLEYİN (BU EKSİK!)
+    try:
         data = request.get_json()
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
         print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
@@ -314,19 +314,11 @@ def gateway_sms():
         ''', (from_number, body, device_id, False, 'android_gateway', datetime.now()))
         conn.commit()
         
-        # ✅ 6. Chatbot'u tetikle
+        # ✅ 7. Chatbot'u tetikle
         if chatbot:
             try:
                 chatbot_response = chatbot.handle_message(body, from_number, 'tr')
                 print(f"🤖 Chatbot Yanıtı: {chatbot_response}")
-                
-                # Yanıtı kaydet
-                cur.execute('''
-                    INSERT INTO chatbot_responses 
-                    (from_number, user_message, bot_response, timestamp)
-                    VALUES (%s, %s, %s, %s)
-                ''', (from_number, body, chatbot_response.get('response', ''), datetime.now()))
-                conn.commit()
                 
             except Exception as e:
                 print(f"⚠️ Chatbot işleme hatası: {e}")
@@ -341,9 +333,10 @@ def gateway_sms():
             "processed": True
         })
         
-    except Exception as e:
+    except Exception as e:  # 🎯 ARTIK TRY BLOĞU VAR!
         print(f"❌ GATEWAY-SMS HATASI: {str(e)}")
         return jsonify({"error": f"Sistem hatası: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
