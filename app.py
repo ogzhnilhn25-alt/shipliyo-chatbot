@@ -87,6 +87,71 @@ def verify_user_agent():
     print(f"🚫 Yetkisiz User-Agent: {user_agent}")
     return False
 
+from collections import defaultdict
+import time
+
+# ==================== GÜVENLİK FONKSİYONLARI ====================
+# Rate limiting storage
+rate_limit_data = defaultdict(list)
+
+def check_rate_limit(client_ip, max_requests=30, window_seconds=60):
+    """Fonksiyon içinde kullanılacak rate limiting"""
+    current_time = time.time()
+    
+    # Eski kayıtları temizle
+    rate_limit_data[client_ip] = [
+        req_time for req_time in rate_limit_data[client_ip] 
+        if current_time - req_time < window_seconds
+    ]
+    
+    # Rate limit kontrolü
+    if len(rate_limit_data[client_ip]) >= max_requests:
+        return False, window_seconds
+    
+    # İsteği kaydet
+    rate_limit_data[client_ip].append(current_time)
+    return True, 0
+
+def validate_phone_number(phone):
+    """Telefon numarası validasyonu"""
+    if not phone:
+        return False
+    # Uluslararası format: +905551234567 veya 905551234567
+    pattern = r'^\+?[1-9]\d{1,14}$'
+    return re.match(pattern, phone) is not None
+
+def validate_message_content(message):
+    """Mesaj içeriği validasyonu"""
+    if not message or len(message.strip()) == 0:
+        return False, "Boş mesaj gönderilemez"
+    
+    if len(message) > 1000:
+        return False, "Mesaj çok uzun (max 1000 karakter)"
+    
+    # Kötü niyetli içerik kontrolü (basit)
+    blocked_patterns = [
+        r'(.)\1{10,}',  # Aynı karakterin 10+ tekrarı
+        r'http[s]?://', # URL'ler
+    ]
+    
+    for pattern in blocked_patterns:
+        if re.search(pattern, message, re.IGNORECASE):
+            return False, "Geçersiz mesaj içeriği"
+    
+    return True, ""
+
+def verify_user_agent():
+    """User-Agent doğrulama - Sadece Android uygulamamız"""
+    user_agent = request.headers.get('User-Agent', '')
+    allowed_agents = ['Shipliyo-SMS-Gateway', 'Android', 'Dalvik']
+    
+    for allowed in allowed_agents:
+        if allowed in user_agent:
+            return True
+    
+    print(f"🚫 Yetkisiz User-Agent: {user_agent}")
+    return False
+
 app = Flask(__name__)
 CORS(app)
 
