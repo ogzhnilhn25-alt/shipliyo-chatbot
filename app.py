@@ -255,16 +255,27 @@ def health_check():
 
 @app.route('/gateway-sms', methods=['POST'])
 def gateway_sms():
-    try:
-        # ✅ 1. User-Agent Doğrulama
-        if not verify_user_agent():
-            return jsonify({"error": "Yetkisiz erişim"}), 403
+    # ✅ 1. RATE LİMİT KONTROLÜ (Fonksiyon içinde - ÇAKIŞMA YOK)
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
+    is_allowed, retry_after = check_rate_limit(client_ip, 30, 60)
+    
+    if not is_allowed:
+        print(f"🚫 Rate limit aşıldı: {client_ip}")
+        return jsonify({
+            "error": f"Çok fazla istek gönderiyorsunuz. Lütfen {retry_after} saniye bekleyin."
+        }), 429
+    
+    # ✅ 2. User-Agent Doğrulama
+    if not verify_user_agent():
+        return jsonify({"error": "Yetkisiz erişim"}), 403
+    
+    # ✅ 3. JSON Format Kontrolü
+    if not request.is_json:
+        return jsonify({"error": "JSON formatında veri gönderin"}), 400
+    
+    # ... mevcut kodun geri kalanı DEĞİŞMEDEN
         
-        # ✅ 2. JSON Format Kontrolü
-        if not request.is_json:
-            return jsonify({"error": "JSON formatında veri gönderin"}), 400
-        
-        # ✅ 3. Request Boyut Kontrolü
+        # ✅ 4. Request Boyut Kontrolü
         if request.content_length > 1024 * 10:  # 10KB
             return jsonify({"error": "İstek boyutu çok büyük"}), 413
         
@@ -272,7 +283,7 @@ def gateway_sms():
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
         print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
         
-        # ✅ 4. Giriş Validasyonu
+        # ✅ 5. Giriş Validasyonu
         from_number = data.get('from', '').strip()
         body = data.get('body', '').strip()
         device_id = data.get('deviceId', 'android_gateway')
@@ -290,7 +301,7 @@ def gateway_sms():
         if device_id and len(device_id) > 100:
             return jsonify({"error": "Geçersiz cihaz ID"}), 400
         
-        # ✅ 5. PostgreSQL'e kaydet
+        # ✅ 6. PostgreSQL'e kaydet
         conn = get_db_connection()
         if not conn:
             return jsonify({"error": "Database bağlantı hatası"}), 500
