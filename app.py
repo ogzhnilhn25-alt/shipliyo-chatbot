@@ -14,6 +14,79 @@ load_dotenv()
 from security.rate_limiter import rate_limiter
 from security.validator import validator
 
+from collections import defaultdict
+import time
+
+# Basit in-memory rate limiting
+request_history = defaultdict(list)
+
+def simple_rate_limit(max_requests=30, window_seconds=60):
+    """Basit IP bazlı rate limiting"""
+    def decorator(f):
+        def wrapped(*args, **kwargs):
+            client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
+            current_time = time.time()
+            
+            # Eski kayıtları temizle
+            request_history[client_ip] = [
+                req_time for req_time in request_history[client_ip] 
+                if current_time - req_time < window_seconds
+            ]
+            
+            # Rate limit kontrolü
+            if len(request_history[client_ip]) >= max_requests:
+                print(f"🚫 Rate limit aşıldı: {client_ip}")
+                return jsonify({
+                    "error": "Çok fazla istek gönderiyorsunuz. Lütfen 1 dakika bekleyin.",
+                    "retry_after": window_seconds
+                }), 429
+            
+            # İsteği kaydet
+            request_history[client_ip].append(current_time)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+def validate_phone_number(phone):
+    """Telefon numarası validasyonu"""
+    if not phone:
+        return False
+    # Uluslararası format: +905551234567 veya 905551234567
+    pattern = r'^\+?[1-9]\d{1,14}$'
+    return re.match(pattern, phone) is not None
+
+def validate_message_content(message):
+    """Mesaj içeriği validasyonu"""
+    if not message or len(message.strip()) == 0:
+        return False, "Boş mesaj gönderilemez"
+    
+    if len(message) > 1000:
+        return False, "Mesaj çok uzun (max 1000 karakter)"
+    
+    # Kötü niyetli içerik kontrolü (basit)
+    blocked_patterns = [
+        r'(.)\1{10,}',  # Aynı karakterin 10+ tekrarı
+        r'http[s]?://', # URL'ler
+    ]
+    
+    for pattern in blocked_patterns:
+        if re.search(pattern, message, re.IGNORECASE):
+            return False, "Geçersiz mesaj içeriği"
+    
+    return True, ""
+
+def verify_user_agent():
+    """User-Agent doğrulama - Sadece Android uygulamamız"""
+    user_agent = request.headers.get('User-Agent', '')
+    allowed_agents = ['Shipliyo-SMS-Gateway', 'Android', 'Dalvik']
+    
+    for allowed in allowed_agents:
+        if allowed in user_agent:
+            return True
+    
+    print(f"🚫 Yetkisiz User-Agent: {user_agent}")
+    return False
+
 app = Flask(__name__)
 CORS(app)
 
@@ -182,24 +255,44 @@ def health_check():
 
 
 @app.route('/gateway-sms', methods=['POST'])
-# @apply_rate_limits(max_per_minute=30, max_per_hour=300)  # 🚨 GEÇİCİ OLARAK KALDIRILDI
+@simple_rate_limit(max_requests=30, window_seconds=60)  # ⚡ YENİ RATE LIMITING
 def gateway_sms():
     try:
+        # ✅ 1. User-Agent Doğrulama
+        if not verify_user_agent():
+            return jsonify({"error": "Yetkisiz erişim"}), 403
+        
+        # ✅ 2. JSON Format Kontrolü
         if not request.is_json:
             return jsonify({"error": "JSON formatında veri gönderin"}), 400
         
-        data = request.get_json()
-        print(f"📨 SMS Alındı: {data}")
+        # ✅ 3. Request Boyut Kontrolü
+        if request.content_length > 1024 * 10:  # 10KB
+            return jsonify({"error": "İstek boyutu çok büyük"}), 413
         
-        # Gerekli alanları kontrol et
+        data = request.get_json()
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
+        print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
+        
+        # ✅ 4. Giriş Validasyonu
         from_number = data.get('from', '').strip()
         body = data.get('body', '').strip()
         device_id = data.get('deviceId', 'android_gateway')
         
-        if not from_number or not body:
-            return jsonify({"error": "from ve body alanları zorunludur"}), 400
+        # Telefon numarası validasyonu
+        if not validate_phone_number(from_number):
+            return jsonify({"error": "Geçersiz telefon numarası formatı"}), 400
         
-        # ✅ 1. PostgreSQL'e kaydet
+        # Mesaj içeriği validasyonu
+        is_valid_msg, msg_error = validate_message_content(body)
+        if not is_valid_msg:
+            return jsonify({"error": msg_error}), 400
+        
+        # Device ID validasyonu
+        if device_id and len(device_id) > 100:
+            return jsonify({"error": "Geçersiz cihaz ID"}), 400
+        
+        # ✅ 5. PostgreSQL'e kaydet
         conn = get_db_connection()
         if not conn:
             return jsonify({"error": "Database bağlantı hatası"}), 500
@@ -212,14 +305,13 @@ def gateway_sms():
         ''', (from_number, body, device_id, False, 'android_gateway', datetime.now()))
         conn.commit()
         
-        # ✅ 2. Chatbot'u HEMEN tetikle
+        # ✅ 6. Chatbot'u tetikle
         if chatbot:
             try:
-                # SMS'i chatbot'a işlet
                 chatbot_response = chatbot.handle_message(body, from_number, 'tr')
                 print(f"🤖 Chatbot Yanıtı: {chatbot_response}")
                 
-                # İsteğe bağlı: Yanıtı başka bir tabloya kaydedebilirsiniz
+                # Yanıtı kaydet
                 cur.execute('''
                     INSERT INTO chatbot_responses 
                     (from_number, user_message, bot_response, timestamp)
