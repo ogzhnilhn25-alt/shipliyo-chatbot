@@ -181,7 +181,6 @@ def home():
     return render_template('index.html')
 
 @app.route('/api/chatbot', methods=['POST'])
-@apply_rate_limits(max_per_minute=10, max_per_hour=60)
 def chatbot_handler():
     try:
         if not request.is_json:
@@ -255,7 +254,6 @@ def health_check():
 
 
 @app.route('/gateway-sms', methods=['POST'])
-@simple_rate_limit(max_requests=30, window_seconds=60)  # ⚡ YENİ RATE LIMITING
 def gateway_sms():
     try:
         # ✅ 1. User-Agent Doğrulama
