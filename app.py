@@ -181,7 +181,7 @@ def home():
     return render_template('index.html')
 
 @app.route('/api/chatbot', methods=['POST'])
-@apply_rate_limits(max_per_minute=10, max_per_hour=200)
+@apply_rate_limits(max_per_minute=10, max_per_hour=60)
 def chatbot_handler():
     try:
         if not request.is_json:
