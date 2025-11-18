@@ -5,6 +5,7 @@ class ShipliyoWidget {
         this.isLoading = false;
         this.currentView = 'main';
         this.viewHistory = []; // Navigation history
+        this.API_BASE_URL = 'https://shipliyo-chatbot-production.up.railway.app'; // ✅ API URL EKLENDİ
         this.init();
     }
     
@@ -767,7 +768,8 @@ class ShipliyoWidget {
         this.showChatView();
         this.addMessage(refCode + " referans kodu aranıyor...", 'user');
         
-        fetch('/api/chatbot', {
+        // ✅ DEĞİŞTİRİLDİ: API URL absolute yapıldı
+        fetch(this.API_BASE_URL + '/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -839,7 +841,8 @@ class ShipliyoWidget {
     this.showChatView();
     this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
     
-    fetch('/api/chatbot', {
+    // ✅ DEĞİŞTİRİLDİ: API URL absolute yapıldı
+    fetch(this.API_BASE_URL + '/api/chatbot', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -909,7 +912,8 @@ class ShipliyoWidget {
         this.addMessage(message, 'user');
         input.value = '';
         
-        fetch('/api/chatbot', {
+        // ✅ DEĞİŞTİRİLDİ: API URL absolute yapıldı
+        fetch(this.API_BASE_URL + '/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
