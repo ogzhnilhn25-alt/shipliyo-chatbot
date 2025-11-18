@@ -384,7 +384,7 @@ def gateway_sms():
             INSERT INTO sms_messages 
             (from_number, body, device_id, processed, source, timestamp)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (from_number, body, device_id, False, 'android_gateway', datetime.now()))
+        ''', (from_number, body, device_id, False, 'android_gateway', datetime.now(timezone.utc)))
         conn.commit()
         
         # ✅ 8. Chatbot'u tetikle

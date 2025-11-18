@@ -131,7 +131,7 @@ class ChatbotManager:
         """Referans kodu ile SMS arama"""
         try:
             if self.db_connected:
-                time_threshold = datetime.now() - timedelta(hours=2)
+                time_threshold = datetime.now(timezone.utc) - timedelta(hours=2)
                 
                 conn = self.get_db_connection()
                 if conn:
