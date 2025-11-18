@@ -1,7 +1,7 @@
 import re
 import os
 from sms_parser import SMSParser
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 import psycopg2
 from response_manager import ResponseManager
@@ -223,7 +223,7 @@ class ChatbotManager:
                     "source": "postgresql_disconnected"
                 }
 
-            time_threshold = datetime.now() - timedelta(seconds=seconds)
+            time_threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
             print(f"⏰ Zaman filtresi: {time_threshold}")
 
             conn = self.get_db_connection()
