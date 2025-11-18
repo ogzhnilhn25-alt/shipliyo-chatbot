@@ -26,13 +26,19 @@ def check_sms_duplicate(from_number, body, timestamp):
     """SMS'in daha önce işlenip işlenmediğini kontrol et (SADECE database için)"""
     current_time = time.time()
     
-    # ✅ Tüm SMS'ler için duplicate kontrol (markalar dahil)
+    # ✅ SADECE gerçek telefon numaraları için duplicate kontrol
+    # "Trendyol", "Hepsiburada" gibi string'ler için HİÇ duplicate kontrol YOK!
+    if not from_number or not (from_number.startswith('+') or from_number.replace(' ', '').isdigit()):
+        return False  # ✅ Marka SMS'leri için HİÇ ENGEL YOK!
+    
+    # ✅ Sadece gerçek telefon numaraları için duplicate kontrol
     duplicate_key = f"{from_number}_{body}_{timestamp}"
     
     if duplicate_key in sms_duplicate_cache:
         cache_time = sms_duplicate_cache[duplicate_key]
         if current_time - cache_time < SMS_CACHE_TIMEOUT:
-            return True  # ✅ Duplicate var, database'e KAYDETME
+            print(f"🔄 ANDROID DUPLICATE ENGELlENDİ: {duplicate_key}")
+            return True
     
     sms_duplicate_cache[duplicate_key] = current_time
     
@@ -41,7 +47,7 @@ def check_sms_duplicate(from_number, body, timestamp):
         if current_time - sms_duplicate_cache[key] > 60:
             del sms_duplicate_cache[key]
     
-    return False  # ✅ İlk kez geliyor, database'e KAYDET
+    return False
 
 # Basit in-memory rate limiting
 request_history = defaultdict(list)

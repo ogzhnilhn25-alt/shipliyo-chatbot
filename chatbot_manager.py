@@ -205,77 +205,82 @@ class ChatbotManager:
         return responses.get(language, responses['tr'])
     
     def get_recent_sms_by_site(self, site: str, seconds: int = 120, language: str = 'tr') -> Dict:
-        """
-        Belirli siteden son X saniyedeki SMS'leri getir
-        """
-        try:
-            print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")
+    try:
+        print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")
 
-            if not self.db_connected:
-                print("❌ PostgreSQL bağlı değil")
-                return {
-                    "success": False,
-                    "response": self.response_manager.get_response('no_recent_sms', language).format(
-                        site=site.title(),
-                        seconds=seconds
-                    ),
-                    "response_type": "direct",
-                    "source": "postgresql_disconnected"
-                }
+        if not self.db_connected:
+            print("❌ PostgreSQL bağlı değil")
+            return {
+                "success": False,
+                "response": self.response_manager.get_response('no_recent_sms', language).format(
+                    site=site.title(),
+                    seconds=seconds
+                ),
+                "response_type": "direct",
+                "source": "postgresql_disconnected"
+            }
 
-            time_threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
-            print(f"⏰ Zaman filtresi: {time_threshold}")
+        # ✅ UTC zamanını kullan (bu çalışıyor!)
+        from datetime import timezone
+        time_threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
+        
+        print(f"⏰ UTC Zaman filtresi: {time_threshold}")
 
-            conn = self.get_db_connection()
-            if not conn:
-                return {
-                    "success": False,
-                    "response": self.response_manager.get_response('no_recent_sms', language).format(
-                        site=site.title(),
-                        seconds=seconds
-                    ),
-                    "response_type": "direct",
-                    "source": "postgresql"
-                }
+        conn = self.get_db_connection()
+        if not conn:
+            return {
+                "success": False,
+                "response": self.response_manager.get_response('no_recent_sms', language).format(
+                    site=site.title(),
+                    seconds=seconds
+                ),
+                "response_type": "direct",
+                "source": "postgresql"
+            }
 
-            cur = conn.cursor()
+        cur = conn.cursor()
+        
+        if site == 'other':
+            # ✅ DİĞER SİTELER: Trendyol, Hepsiburada, n11 hariç tüm SMS'ler
+            cur.execute(
+                "SELECT * FROM sms_messages WHERE body NOT ILIKE %s AND body NOT ILIKE %s AND body NOT ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 10",
+                ('%trendyol%', '%hepsiburada%', '%n11%', time_threshold)
+            )
+        else:
+            # ✅ BELİRLİ SİTE: Sadece body içeriğine göre filtrele
+            site_patterns = {
+                'trendyol': '%trendyol%',
+                'hepsiburada': '%hepsiburada%', 
+                'n11': '%n11%'
+            }
+            search_pattern = site_patterns.get(site, f'%{site}%')
             
-            if site == 'other':
-                # Diğer siteler için (trendyol, hepsiburada, n11 hariç)
-                cur.execute(
-                    "SELECT * FROM sms_messages WHERE body NOT ILIKE %s AND body NOT ILIKE %s AND body NOT ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 10",
-                    ('%trendyol%', '%hepsiburada%', '%n11%', time_threshold)
-                )
-            else:
-                # Belirli site için
-                site_patterns = {
-                    'trendyol': '%trendyol%',
-                    'hepsiburada': '%hepsiburada%', 
-                    'n11': '%n11%'
-                }
-                search_pattern = site_patterns.get(site, f'%{site}%')
+            cur.execute(
+                "SELECT * FROM sms_messages WHERE body ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 10",
+                (search_pattern, time_threshold)
+            )
+
+        recent_sms = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        print(f"📨 Bulunan SMS sayısı: {len(recent_sms)}")
+        
+        # ✅ DEBUG: Bulunan SMS'leri göster
+        for sms in recent_sms:
+            print(f"📄 SMS: {sms}")
+
+        if not recent_sms:
+            return {
+                "success": False,
+                "response": self.response_manager.get_response('no_recent_sms', language).format(
+                    site=site.title(),
+                    seconds=seconds
+                ),
+                "response_type": "direct",
+                "source": "postgresql"
+            }
                 
-                cur.execute(
-                    "SELECT * FROM sms_messages WHERE body ILIKE %s AND timestamp >= %s ORDER BY timestamp DESC LIMIT 10",
-                    (search_pattern, time_threshold)
-                )
-
-            recent_sms = cur.fetchall()
-            cur.close()
-            conn.close()
-
-            print(f"📨 Bulunan SMS sayısı: {len(recent_sms)}")
-
-            if not recent_sms:
-                return {
-                    "success": False,
-                    "response": self.response_manager.get_response('no_recent_sms', language).format(
-                        site=site.title(),
-                        seconds=seconds
-                    ),
-                    "response_type": "direct",
-                    "source": "postgresql"
-                }
 
             # PostgreSQL sonuçlarını dictionary'ye çevir
             parsed_sms_list = []
