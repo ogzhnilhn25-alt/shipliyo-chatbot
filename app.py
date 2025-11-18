@@ -207,7 +207,7 @@ except Exception as e:
 # ==================== ROUTE HANDLERS ====================
 @app.route('/gateway-sms', methods=['POST'])
 def gateway_sms():
-    # 1. RATE LİMİT KONTROLÜ
+    # ✅ 1. RATE LİMİT KONTROLÜ (EN BAŞTA)
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
     is_allowed, retry_after = check_rate_limit(client_ip, 30, 60)
     
@@ -217,88 +217,99 @@ def gateway_sms():
             "error": f"Çok fazla istek gönderiyorsunuz. Lütfen {retry_after} saniye bekleyin."
         }), 429
     
-    # 2. User-Agent Doğrulama
+    # ✅ 2. User-Agent Doğrulama
     if not verify_user_agent():
         return jsonify({"error": "Yetkisiz erişim"}), 403
     
-    # 3. JSON Format Kontrolü
+    # ✅ 3. JSON Format Kontrolü
     if not request.is_json:
         return jsonify({"error": "JSON formatında veri gönderin"}), 400
     
-    # 4. Request Boyut Kontrolü
+    # ✅ 4. Request Boyut Kontrolü
     if request.content_length > 1024 * 10:  # 10KB
         return jsonify({"error": "İstek boyutu çok büyük"}), 413
     
+    # ✅ TEK BİR TRY-EXCEPT BLOĞU
     try:
         data = request.get_json()
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
         
-        # 5. DUPLICATE SMS KONTROLÜ
+        print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
+        
         from_number = data.get('from', '').strip()
         body = data.get('body', '').strip()
+        device_id = data.get('deviceId', 'android_gateway')
+        timestamp = data.get('timestamp', '')
 
-        # 🔹 Backend timestamp kullanıyoruz
-        current_time = datetime.now(timezone.utc)
-
-        # Duplicate kontrolü
-        if check_sms_duplicate(from_number, body, current_time):
+        # ✅ DEBUG: Duplicate kontrolünü logla
+        is_duplicate = check_sms_duplicate(from_number, body, timestamp)
+        print(f"🔍 Duplicate Check: {is_duplicate}, From: {from_number}")
+        
+        # ✅ Eğer duplicate ise database'e KAYDETME
+        if is_duplicate:
+            print(f"🔄 DUPLICATE SMS - Database'e kaydedilmedi: {from_number}")
+            # Ama yine de success dön (SMS işlendi sayılsın)
             return jsonify({
-                "status": "duplicate", 
-                "message": "SMS zaten işlendi"
+                "status": "success", 
+                "message": "SMS alındı",
+                "duplicate": True
             }), 200
 
-        print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
-
-        device_id = data.get('deviceId', 'android_gateway')
-
+        # ✅ 5. Giriş Validasyonu
         # Telefon numarası validasyonu
         if not validate_phone_number(from_number):
             return jsonify({"error": "Geçersiz telefon numarası formatı"}), 400
-
+        
         # Mesaj içeriği validasyonu
         is_valid_msg, msg_error = validate_message_content(body)
         if not is_valid_msg:
             return jsonify({"error": msg_error}), 400
-
+        
         # Device ID validasyonu
         if device_id and len(device_id) > 100:
             return jsonify({"error": "Geçersiz cihaz ID"}), 400
 
-        # 6. PostgreSQL'e kaydet
+        # ✅ 6. PostgreSQL'e kaydet
+        # DEBUG: Database bağlantısını kontrol et
         conn = get_db_connection()
         if not conn:
+            print("❌ DATABASE BAĞLANTI HATASI!")
             return jsonify({"error": "Database bağlantı hatası"}), 500
-
+        
+        print(f"💾 Database'e kaydediliyor: {from_number} - {body[:50]}...")
+        
         cur = conn.cursor()
         cur.execute('''
             INSERT INTO sms_messages 
             (from_number, body, device_id, processed, source, timestamp)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (from_number, body, device_id, False, 'android_gateway', current_time))
+        ''', (from_number, body, device_id, False, 'android_gateway', datetime.now(timezone.utc)))
         conn.commit()
-
-        # 7. Chatbot'u tetikle
+        
+        # ✅ DEBUG: Kayıt başarılı
+        print(f"✅ Database'e KAYDEDİLDİ: {from_number}")
+        
+        # ✅ 7. Chatbot'u tetikle
         if chatbot:
             try:
                 chatbot_response = chatbot.handle_message(body, from_number, 'tr')
                 print(f"🤖 Chatbot Yanıtı: {chatbot_response}")
             except Exception as e:
                 print(f"⚠️ Chatbot işleme hatası: {e}")
-
+        
         cur.close()
         conn.close()
-
+        
         print(f"✅ SMS başarıyla işlendi: {from_number}")
         return jsonify({
             "status": "success",
             "message": "SMS başarıyla alındı ve işlendi",
             "processed": True
         })
-
+        
     except Exception as e:
         print(f"❌ GATEWAY-SMS HATASI: {str(e)}")
         return jsonify({"error": f"Sistem hatası: {str(e)}"}), 500
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
