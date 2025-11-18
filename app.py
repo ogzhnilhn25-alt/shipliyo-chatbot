@@ -23,20 +23,17 @@ sms_duplicate_cache = {}
 SMS_CACHE_TIMEOUT = 5  # 5 saniye
 
 def check_sms_duplicate(from_number, body, timestamp):
-    """Aynı SMS'in kısa sürede tekrar gelmesini engelle"""
+    """SMS'in daha önce işlenip işlenmediğini kontrol et (SADECE database için)"""
     current_time = time.time()
     
-    # Duplicate key oluştur
+    # ✅ Tüm SMS'ler için duplicate kontrol (markalar dahil)
     duplicate_key = f"{from_number}_{body}_{timestamp}"
     
-    # Cache'te var mı kontrol et
     if duplicate_key in sms_duplicate_cache:
         cache_time = sms_duplicate_cache[duplicate_key]
         if current_time - cache_time < SMS_CACHE_TIMEOUT:
-            print(f"🔄 DUPLICATE SMS ENGELlENDİ: {duplicate_key}")
-            return True
+            return True  # ✅ Duplicate var, database'e KAYDETME
     
-    # Cache'e kaydet
     sms_duplicate_cache[duplicate_key] = current_time
     
     # Eski cache'leri temizle (1 dakikadan eski)
@@ -44,7 +41,7 @@ def check_sms_duplicate(from_number, body, timestamp):
         if current_time - sms_duplicate_cache[key] > 60:
             del sms_duplicate_cache[key]
     
-    return False
+    return False  # ✅ İlk kez geliyor, database'e KAYDET
 
 # Basit in-memory rate limiting
 request_history = defaultdict(list)
