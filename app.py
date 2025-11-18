@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, Response, render_template
 from flask_cors import CORS
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import re
 import psycopg2
@@ -119,9 +119,6 @@ def verify_user_agent():
     print(f"🚫 Yetkisiz User-Agent: {user_agent}")
     return False
 
-from collections import defaultdict
-import time
-
 # ==================== GÜVENLİK FONKSİYONLARI ====================
 # Rate limiting storage
 rate_limit_data = defaultdict(list)
@@ -207,117 +204,10 @@ except Exception as e:
     print(f"❌ ChatbotManager yüklenemedi: {e}")
     chatbot = None
 
-# ==================== GÜVENLİK FONKSİYONLARI ====================
-def get_client_identifier() -> str:
-    return request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
-
-def apply_rate_limits(max_per_minute: int = 10, max_per_hour: int = 100):
-    def decorator(f):
-        def wrapped(*args, **kwargs):
-            client_id = get_client_identifier()
-            endpoint_name = f.__name__
-            
-            minute_key = f"minute_{endpoint_name}_{client_id}"
-            if rate_limiter.is_rate_limited(minute_key, max_per_minute, 60):
-                return jsonify({
-                    "success": False,
-                    "response": "Çok hızlı istek gönderiyorsunuz. Lütfen 1 dakika bekleyin.",
-                    "response_type": "direct"
-                }), 429
-            
-            hour_key = f"hour_{endpoint_name}_{client_id}"
-            if rate_limiter.is_rate_limited(hour_key, max_per_hour, 3600):
-                return jsonify({
-                    "success": False,
-                    "response": "Günlük istek limitiniz doldu. Lütfen 1 saat bekleyin.",
-                    "response_type": "direct"
-                }), 429
-            
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
-
 # ==================== ROUTE HANDLERS ====================
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/api/chatbot', methods=['POST'])
-def chatbot_handler():
-    try:
-        if not request.is_json:
-            return jsonify({
-                "success": False,
-                "response": "JSON formatında veri gönderin",
-                "response_type": "direct"
-            }), 400
-        
-        data = request.get_json()
-        message = data.get('message', '').strip()
-        session_id = data.get('session_id', 'default_session')
-        language = data.get('language', 'tr')
-        
-        is_valid_msg, sanitized_msg = validator.sanitize_message(message)
-        if not is_valid_msg:
-            return jsonify({
-                "success": False,
-                "response": sanitized_msg or "Geçersiz mesaj",
-                "response_type": "direct"
-            }), 400
-        
-        if not chatbot:
-            return jsonify({
-                "success": False,
-                "response": "Chatbot servisi şu anda kullanılamıyor",
-                "response_type": "direct"
-            }), 503
-        
-        response = chatbot.handle_message(sanitized_msg, session_id, language)
-        return jsonify(response)
-        
-    except Exception as e:
-        print(f"❌ CHATBOT HATASI: {str(e)}")
-        return jsonify({
-            "success": False,
-            "response": "Sistem hatası oluştu",
-            "response_type": "direct"
-        }), 500
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    try:
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        conn = get_db_connection()
-        
-        if conn:
-            conn.close()
-            db_status = "connected"
-        else:
-            db_status = "disconnected"
-        
-        return jsonify({
-            "status": "healthy",
-            "service": "Shipliyo SMS Backend & Chatbot",
-            "timestamp": datetime.now().isoformat(),
-            "database": db_status,
-            "railway_ip": client_ip,
-            "version": "2.2.0",
-            "database_type": "PostgreSQL"
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "degraded",
-            "service": "Shipliyo SMS Backend & Chatbot",
-            "timestamp": datetime.now().isoformat(),
-            "database": "disconnected", 
-            "error": str(e),
-            "version": "2.2.0"
-        }), 503
-
-
 @app.route('/gateway-sms', methods=['POST'])
 def gateway_sms():
-    # ✅ 1. RATE LİMİT KONTROLÜ
+    # 1. RATE LİMİT KONTROLÜ
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
     is_allowed, retry_after = check_rate_limit(client_ip, 30, 60)
     
@@ -327,86 +217,85 @@ def gateway_sms():
             "error": f"Çok fazla istek gönderiyorsunuz. Lütfen {retry_after} saniye bekleyin."
         }), 429
     
-    # ✅ 2. User-Agent Doğrulama
+    # 2. User-Agent Doğrulama
     if not verify_user_agent():
         return jsonify({"error": "Yetkisiz erişim"}), 403
     
-    # ✅ 3. JSON Format Kontrolü
+    # 3. JSON Format Kontrolü
     if not request.is_json:
         return jsonify({"error": "JSON formatında veri gönderin"}), 400
     
-    # ✅ 4. Request Boyut Kontrolü
+    # 4. Request Boyut Kontrolü
     if request.content_length > 1024 * 10:  # 10KB
         return jsonify({"error": "İstek boyutu çok büyük"}), 413
     
-    # ✅ TRY BLOĞU EKLEYİN (BU EKSİK!)
     try:
         data = request.get_json()
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
         
-        # ✅ 5. DUPLICATE SMS KONTROLÜ (YENİ EKLENDİ)
+        # 5. DUPLICATE SMS KONTROLÜ
         from_number = data.get('from', '').strip()
         body = data.get('body', '').strip()
-        timestamp = data.get('timestamp', '')
-        
-        # Duplicate kontrolü yap
-        if check_sms_duplicate(from_number, body, timestamp):
+
+        # 🔹 Backend timestamp kullanıyoruz
+        current_time = datetime.now(timezone.utc)
+
+        # Duplicate kontrolü
+        if check_sms_duplicate(from_number, body, current_time):
             return jsonify({
                 "status": "duplicate", 
                 "message": "SMS zaten işlendi"
             }), 200
-        
+
         print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
-        
-        # ✅ 6. Giriş Validasyonu
+
         device_id = data.get('deviceId', 'android_gateway')
-        
+
         # Telefon numarası validasyonu
         if not validate_phone_number(from_number):
             return jsonify({"error": "Geçersiz telefon numarası formatı"}), 400
-        
+
         # Mesaj içeriği validasyonu
         is_valid_msg, msg_error = validate_message_content(body)
         if not is_valid_msg:
             return jsonify({"error": msg_error}), 400
-        
+
         # Device ID validasyonu
         if device_id and len(device_id) > 100:
             return jsonify({"error": "Geçersiz cihaz ID"}), 400
-        
-        # ✅ 7. PostgreSQL'e kaydet
+
+        # 6. PostgreSQL'e kaydet
         conn = get_db_connection()
         if not conn:
             return jsonify({"error": "Database bağlantı hatası"}), 500
-            
+
         cur = conn.cursor()
         cur.execute('''
             INSERT INTO sms_messages 
             (from_number, body, device_id, processed, source, timestamp)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (from_number, body, device_id, False, 'android_gateway', datetime.now(timezone.utc)))
+        ''', (from_number, body, device_id, False, 'android_gateway', current_time))
         conn.commit()
-        
-        # ✅ 8. Chatbot'u tetikle
+
+        # 7. Chatbot'u tetikle
         if chatbot:
             try:
                 chatbot_response = chatbot.handle_message(body, from_number, 'tr')
                 print(f"🤖 Chatbot Yanıtı: {chatbot_response}")
-                
             except Exception as e:
                 print(f"⚠️ Chatbot işleme hatası: {e}")
-        
+
         cur.close()
         conn.close()
-        
+
         print(f"✅ SMS başarıyla işlendi: {from_number}")
         return jsonify({
             "status": "success",
             "message": "SMS başarıyla alındı ve işlendi",
             "processed": True
         })
-        
-    except Exception as e:  # 🎯 ARTIK TRY BLOĞU VAR!
+
+    except Exception as e:
         print(f"❌ GATEWAY-SMS HATASI: {str(e)}")
         return jsonify({"error": f"Sistem hatası: {str(e)}"}), 500
 
