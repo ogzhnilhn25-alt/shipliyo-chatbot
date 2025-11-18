@@ -17,6 +17,35 @@ from security.validator import validator
 from collections import defaultdict
 import time
 
+# ==================== DUPLICATE PROTECTION ====================
+# SMS duplicate koruması için cache
+sms_duplicate_cache = {}
+SMS_CACHE_TIMEOUT = 5  # 5 saniye
+
+def check_sms_duplicate(from_number, body, timestamp):
+    """Aynı SMS'in kısa sürede tekrar gelmesini engelle"""
+    current_time = time.time()
+    
+    # Duplicate key oluştur
+    duplicate_key = f"{from_number}_{body}_{timestamp}"
+    
+    # Cache'te var mı kontrol et
+    if duplicate_key in sms_duplicate_cache:
+        cache_time = sms_duplicate_cache[duplicate_key]
+        if current_time - cache_time < SMS_CACHE_TIMEOUT:
+            print(f"🔄 DUPLICATE SMS ENGELlENDİ: {duplicate_key}")
+            return True
+    
+    # Cache'e kaydet
+    sms_duplicate_cache[duplicate_key] = current_time
+    
+    # Eski cache'leri temizle (1 dakikadan eski)
+    for key in list(sms_duplicate_cache.keys()):
+        if current_time - sms_duplicate_cache[key] > 60:
+            del sms_duplicate_cache[key]
+    
+    return False
+
 # Basit in-memory rate limiting
 request_history = defaultdict(list)
 
@@ -112,48 +141,13 @@ def check_rate_limit(client_ip, max_requests=30, window_seconds=60):
     rate_limit_data[client_ip].append(current_time)
     return True, 0
 
-def validate_phone_number(phone):
-    """Telefon numarası validasyonu"""
-    if not phone:
-        return False
-    # Uluslararası format: +905551234567 veya 905551234567
-    pattern = r'^\+?[1-9]\d{1,14}$'
-    return re.match(pattern, phone) is not None
-
-def validate_message_content(message):
-    """Mesaj içeriği validasyonu"""
-    if not message or len(message.strip()) == 0:
-        return False, "Boş mesaj gönderilemez"
-    
-    if len(message) > 1000:
-        return False, "Mesaj çok uzun (max 1000 karakter)"
-    
-    # Kötü niyetli içerik kontrolü (basit)
-    blocked_patterns = [
-        r'(.)\1{10,}',  # Aynı karakterin 10+ tekrarı
-        r'http[s]?://', # URL'ler
-    ]
-    
-    for pattern in blocked_patterns:
-        if re.search(pattern, message, re.IGNORECASE):
-            return False, "Geçersiz mesaj içeriği"
-    
-    return True, ""
-
-def verify_user_agent():
-    """User-Agent doğrulama - Sadece Android uygulamamız"""
-    user_agent = request.headers.get('User-Agent', '')
-    allowed_agents = ['Shipliyo-SMS-Gateway', 'Android', 'Dalvik']
-    
-    for allowed in allowed_agents:
-        if allowed in user_agent:
-            return True
-    
-    print(f"🚫 Yetkisiz User-Agent: {user_agent}")
-    return False
-
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=[
+    "https://www.shipliyo.com",
+    "https://shipliyo.com",
+    "http://localhost:3000",
+    "https://shipliyo-chatbot-production.up.railway.app"
+])
 
 # PostgreSQL bağlantısı
 def get_db_connection():
@@ -346,11 +340,22 @@ def gateway_sms():
     try:
         data = request.get_json()
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
-        print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
         
-        # ✅ 5. Giriş Validasyonu
+        # ✅ 5. DUPLICATE SMS KONTROLÜ (YENİ EKLENDİ)
         from_number = data.get('from', '').strip()
         body = data.get('body', '').strip()
+        timestamp = data.get('timestamp', '')
+        
+        # Duplicate kontrolü yap
+        if check_sms_duplicate(from_number, body, timestamp):
+            return jsonify({
+                "status": "duplicate", 
+                "message": "SMS zaten işlendi"
+            }), 200
+        
+        print(f"📨 SMS Alındı - IP: {client_ip}, Data: {data}")
+        
+        # ✅ 6. Giriş Validasyonu
         device_id = data.get('deviceId', 'android_gateway')
         
         # Telefon numarası validasyonu
@@ -366,7 +371,7 @@ def gateway_sms():
         if device_id and len(device_id) > 100:
             return jsonify({"error": "Geçersiz cihaz ID"}), 400
         
-        # ✅ 6. PostgreSQL'e kaydet
+        # ✅ 7. PostgreSQL'e kaydet
         conn = get_db_connection()
         if not conn:
             return jsonify({"error": "Database bağlantı hatası"}), 500
@@ -379,7 +384,7 @@ def gateway_sms():
         ''', (from_number, body, device_id, False, 'android_gateway', datetime.now()))
         conn.commit()
         
-        # ✅ 7. Chatbot'u tetikle
+        # ✅ 8. Chatbot'u tetikle
         if chatbot:
             try:
                 chatbot_response = chatbot.handle_message(body, from_number, 'tr')
