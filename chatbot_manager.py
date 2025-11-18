@@ -205,40 +205,42 @@ class ChatbotManager:
         return responses.get(language, responses['tr'])
     
     def get_recent_sms_by_site(self, site: str, seconds: int = 120, language: str = 'tr') -> Dict:
-    try:
-        print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")
+        try:
+            print(f"🔍 ARAMA: Site='{site}', Saniye={seconds}")
 
-        if not self.db_connected:
-            print("❌ PostgreSQL bağlı değil")
-            return {
-                "success": False,
-                "response": self.response_manager.get_response('no_recent_sms', language).format(
-                    site=site.title(),
-                    seconds=seconds
-                ),
-                "response_type": "direct",
-                "source": "postgresql_disconnected"
-            }
+            if not self.db_connected:
+                print("❌ PostgreSQL bağlı değil")
+                return {
+                    "success": False,
+                    "response": self.response_manager.get_response('no_recent_sms', language).format(
+                        site=site.title(),
+                        seconds=seconds
+                    ),
+                    "response_type": "direct",
+                    "source": "postgresql_disconnected"
+                }
 
-        # ✅ UTC zamanını kullan (bu çalışıyor!)
-        from datetime import timezone
-        time_threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
-        
-        print(f"⏰ UTC Zaman filtresi: {time_threshold}")
+            # ✅ UTC zamanını kullan
+            from datetime import timezone
+            time_threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
+            
+            print(f"⏰ UTC Zaman filtresi: {time_threshold}")
 
-        conn = self.get_db_connection()
-        if not conn:
-            return {
-                "success": False,
-                "response": self.response_manager.get_response('no_recent_sms', language).format(
-                    site=site.title(),
-                    seconds=seconds
-                ),
-                "response_type": "direct",
-                "source": "postgresql"
-            }
+            conn = self.get_db_connection()
+            if not conn:
+                return {
+                    "success": False,
+                    "response": self.response_manager.get_response('no_recent_sms', language).format(
+                        site=site.title(),
+                        seconds=seconds
+                    ),
+                    "response_type": "direct",
+                    "source": "postgresql"
+                }
 
-        cur = conn.cursor()
+            cur = conn.cursor()
+            
+            # ... tüm fonksiyon bu şekilde DEVAM ETMELİ!
         
         if site == 'other':
             # ✅ DİĞER SİTELER: Trendyol, Hepsiburada, n11 hariç tüm SMS'ler
