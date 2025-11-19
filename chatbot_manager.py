@@ -229,7 +229,7 @@ class ChatbotManager:
                 }
 
             # ✅ UTC zamanını kullan
-            time_threshold = datetime.now() - timedelta(seconds=seconds)
+            time_threshold = datetime.utcnow() - timedelta(seconds=seconds)
             
             print(f"⏰ UTC Zaman filtresi: {time_threshold}")
 

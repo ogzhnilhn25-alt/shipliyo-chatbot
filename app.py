@@ -377,11 +377,13 @@ def gateway_sms():
             return jsonify({"error": "Database bağlantı hatası"}), 500
             
         cur = conn.cursor()
-        cur.execute('''
-            INSERT INTO sms_messages 
+        sms_timestamp = datetime.fromisoformat(data.get('timestamp').replace('Z', '+00:00'))
+	cur.execute('''
+            
+	    INSERT INTO sms_messages 
             (from_number, body, device_id, processed, source, timestamp)
             VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-        ''', (from_number, body, device_id, False, 'android_gateway'))
+        ''', (from_number, body, device_id, False, 'android_gateway', sms_timestamp))
         conn.commit()
         
         # ✅ 8. Chatbot'u tetikle
