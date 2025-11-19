@@ -1,7 +1,7 @@
 import re
 import os
 from sms_parser import SMSParser
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import psycopg2
 from response_manager import ResponseManager
@@ -25,31 +25,33 @@ class ChatbotManager:
             self.db_connected = False
 
     def get_db_connection(self):
-    """PostgreSQL bağlantısı oluştur"""
-    try:
-        database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            print("❌ DATABASE_URL environment variable bulunamadı")
+        """PostgreSQL bağlantısı oluştur"""
+        try:
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                print("❌ DATABASE_URL environment variable bulunamadı")
+                return None
+            
+            # SSL modunu zorla
+            if "sslmode" not in database_url:
+                if "?" in database_url:
+                    database_url += "&sslmode=require"
+                else:
+                    database_url += "?sslmode=require"
+            
+            conn = psycopg2.connect(database_url)
+            
+            # TIMEZONE SENKRONİZASYONU
+            cur = conn.cursor()
+            cur.execute("SET TIME ZONE 'Europe/Istanbul'")
+            cur.close()
+            
+            return conn
+        except Exception as e:
+            print(f"❌ PostgreSQL bağlantı hatası: {e}")
             return None
-        
-        # SSL modunu zorla
-        if "sslmode" not in database_url:
-            if "?" in database_url:
-                database_url += "&sslmode=require"
-            else:
-                database_url += "?sslmode=require"
-        
-        conn = psycopg2.connect(database_url)
-        
-        # ✅ TIMEZONE SENKRONİZASYONU - AYNI SEVİYEDE
-        cur = conn.cursor()
-        cur.execute("SET TIME ZONE 'Europe/Istanbul'")
-        cur.close()
-        
-        return conn
-    except Exception as e:
-        print(f"❌ PostgreSQL bağlantı hatası: {e}")
-        return None
+
+    # ... diğer metodlar aynı şekilde devam edecek ...
 
     def detect_intent(self, message: str, language: str) -> str:
         """Mesajın intent'ini tespit eder"""
