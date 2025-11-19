@@ -336,18 +336,24 @@ def gateway_sms():
     if request.content_length > 1024 * 10:  # 10KB
         return jsonify({"error": "İstek boyutu çok büyük"}), 413
     
-    # ✅ TRY BLOĞU EKLEYİN (BU EKSİK!)
+    # ✅ TRY BLOĞU
     try:
+        # ✅ DEBUG: Tüm gelen veriyi logla
         data = request.get_json()
+        print(f"🔍 DEBUG - Tüm Request Data: {data}")
+        
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')
         
-        # ✅ 5. DUPLICATE SMS KONTROLÜ (YENİ EKLENDİ)
+        # ✅ DEBUG: Gelen SMS detayları
         from_number = data.get('from', '').strip()
         body = data.get('body', '').strip()
         timestamp = data.get('timestamp', '')
         
-        # Duplicate kontrolü yap
+        print(f"🔍 DEBUG - SMS Detayları: from='{from_number}', body='{body[:50]}...'")
+        
+        # ✅ 5. DUPLICATE SMS KONTROLÜ
         if check_sms_duplicate(from_number, body, timestamp):
+            print(f"🔍 DEBUG - DUPLICATE SMS: {from_number}")
             return jsonify({
                 "status": "duplicate", 
                 "message": "SMS zaten işlendi"
@@ -358,9 +364,14 @@ def gateway_sms():
         # ✅ 6. Giriş Validasyonu
         device_id = data.get('deviceId', 'android_gateway')
         
-        # Telefon numarası validasyonu
-        if not validate_phone_number(from_number):
-            return jsonify({"error": "Geçersiz telefon numarası formatı"}), 400
+        # ✅ DEBUG: Validasyon öncesi
+        phone_valid = validate_phone_number(from_number)
+        print(f"🔍 DEBUG - Telefon Validasyonu: {phone_valid}")
+        
+        # Telefon numarası validasyonu - TRENDYOL İÇİN GEÇİCİ OLARAK KAPAT
+        # if not validate_phone_number(from_number):
+        #     print(f"🔍 DEBUG - TELEFON VALIDASYON HATASI: {from_number}")
+        #     return jsonify({"error": "Geçersiz telefon numarası formatı"}), 400
         
         # Mesaj içeriği validasyonu
         is_valid_msg, msg_error = validate_message_content(body)
@@ -371,7 +382,7 @@ def gateway_sms():
         if device_id and len(device_id) > 100:
             return jsonify({"error": "Geçersiz cihaz ID"}), 400
         
-               # ✅ 7. PostgreSQL'e kaydet
+        # ✅ 7. PostgreSQL'e kaydet
         conn = get_db_connection()
         if not conn:
             return jsonify({"error": "Database bağlantı hatası"}), 500
@@ -406,7 +417,7 @@ def gateway_sms():
             "processed": True
         })
         
-    except Exception as e:  # 🎯 ARTIK TRY BLOĞU VAR!
+    except Exception as e:
         print(f"❌ GATEWAY-SMS HATASI: {str(e)}")
         return jsonify({"error": f"Sistem hatası: {str(e)}"}), 500
 
