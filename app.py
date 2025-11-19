@@ -371,18 +371,19 @@ def gateway_sms():
         if device_id and len(device_id) > 100:
             return jsonify({"error": "Geçersiz cihaz ID"}), 400
         
-        # ✅ 7. PostgreSQL'e kaydet
+               # ✅ 7. PostgreSQL'e kaydet
         conn = get_db_connection()
         if not conn:
             return jsonify({"error": "Database bağlantı hatası"}), 500
             
         cur = conn.cursor()
+        
+        # SMS timestamp'ini UTC olarak kaydet
         sms_timestamp = datetime.fromisoformat(data.get('timestamp').replace('Z', '+00:00'))
-	cur.execute('''
-            
-	    INSERT INTO sms_messages 
+        cur.execute('''
+            INSERT INTO sms_messages 
             (from_number, body, device_id, processed, source, timestamp)
-            VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            VALUES (%s, %s, %s, %s, %s, %s)
         ''', (from_number, body, device_id, False, 'android_gateway', sms_timestamp))
         conn.commit()
         
