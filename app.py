@@ -380,8 +380,8 @@ def gateway_sms():
         cur.execute('''
             INSERT INTO sms_messages 
             (from_number, body, device_id, processed, source, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (from_number, body, device_id, False, 'android_gateway', datetime.now()))
+            VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ''', (from_number, body, device_id, False, 'android_gateway'()))
         conn.commit()
         
         # ✅ 8. Chatbot'u tetikle

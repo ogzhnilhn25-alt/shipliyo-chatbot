@@ -40,7 +40,11 @@ class ChatbotManager:
                     database_url += "?sslmode=require"
             
             conn = psycopg2.connect(database_url)
-            return conn
+	    cur = conn.cursor()
+            cur.execute("SET TIME ZONE 'Europe/Istanbul'")  # veya 'UTC'
+            cur.close()
+            
+	    return conn
         except Exception as e:
             print(f"❌ PostgreSQL bağlantı hatası: {e}")
             return None
@@ -131,7 +135,7 @@ class ChatbotManager:
         """Referans kodu ile SMS arama"""
         try:
             if self.db_connected:
-                time_threshold = datetime.now(timezone.utc) - timedelta(hours=2)
+                time_threshold = datetime.now() - timedelta(hours=2)
                 
                 conn = self.get_db_connection()
                 if conn:
@@ -221,7 +225,7 @@ class ChatbotManager:
                 }
 
             # ✅ UTC zamanını kullan
-            time_threshold = datetime.now(timezone.utc) - timedelta(seconds=seconds)
+            time_threshold = datetime.now() - timedelta(seconds=seconds)
             
             print(f"⏰ UTC Zaman filtresi: {time_threshold}")
 
