@@ -25,29 +25,31 @@ class ChatbotManager:
             self.db_connected = False
 
     def get_db_connection(self):
-        """PostgreSQL bağlantısı oluştur"""
-        try:
-            database_url = os.environ.get('DATABASE_URL')
-            if not database_url:
-                print("❌ DATABASE_URL environment variable bulunamadı")
-                return None
-            
-            # SSL modunu zorla
-            if "sslmode" not in database_url:
-                if "?" in database_url:
-                    database_url += "&sslmode=require"
-                else:
-                    database_url += "?sslmode=require"
-            
-            conn = psycopg2.connect(database_url)
-	    cur = conn.cursor()
-            cur.execute("SET TIME ZONE 'Europe/Istanbul'")  # veya 'UTC'
-            cur.close()
-            
-	    return conn
-        except Exception as e:
-            print(f"❌ PostgreSQL bağlantı hatası: {e}")
+    """PostgreSQL bağlantısı oluştur"""
+    try:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            print("❌ DATABASE_URL environment variable bulunamadı")
             return None
+        
+        # SSL modunu zorla
+        if "sslmode" not in database_url:
+            if "?" in database_url:
+                database_url += "&sslmode=require"
+            else:
+                database_url += "?sslmode=require"
+        
+        conn = psycopg2.connect(database_url)
+        
+        # ✅ TIMEZONE SENKRONİZASYONU - AYNI SEVİYEDE
+        cur = conn.cursor()
+        cur.execute("SET TIME ZONE 'Europe/Istanbul'")
+        cur.close()
+        
+        return conn
+    except Exception as e:
+        print(f"❌ PostgreSQL bağlantı hatası: {e}")
+        return None
 
     def detect_intent(self, message: str, language: str) -> str:
         """Mesajın intent'ini tespit eder"""
