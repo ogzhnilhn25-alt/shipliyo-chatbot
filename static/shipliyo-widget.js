@@ -5,8 +5,191 @@ class ShipliyoWidget {
         this.isLoading = false;
         this.currentView = 'main';
         this.viewHistory = []; // Navigation history
-        this.API_BASE_URL = 'https://shipliyo-chatbot-production.up.railway.app'; // ✅ API URL EKLENDİ
+        this.API_BASE_URL = 'https://shipliyo-chatbot-production.up.railway.app';
+        
+        // ✅ DİL DEĞİŞKENİ EKLENDİ
+        this.currentLanguage = 'tr';
+        this.translations = {
+            'tr': {
+                'welcome': 'Merhaba!',
+                'helpText': 'Size nasıl yardımcı olabilirim?',
+                'online': 'Çevrimiçi',
+                'getCode': 'Doğrulama Kodu Al',
+                'help': 'Yardım & Bilgi',
+                'searchRef': 'Referans Kodu ile Ara',
+                'getAddress': 'Teslimat Adresi Al',
+                'selectSite': 'Site Seçin',
+                'siteDesc': 'Doğrulama kodu almak için bir site seçin',
+                'searchRefTitle': 'Referans Kodu Ara',
+                'searchRefDesc': 'Referans kodunu girerek arama yapın',
+                'refPlaceholder': 'Referans kodunu girin...',
+                'addressTitle': 'Teslimat Adresi',
+                'addressDesc': 'Telefon numaranızın son 9 hanesini girin',
+                'phonePlaceholder': 'Örnek: 111222333',
+                'processing': 'İşleniyor...',
+                'send': 'Gönder',
+                'messagePlaceholder': 'Mesajınızı yazın...',
+                'searching': 'aranıyor...',
+                'noSms': 'SMS bulunamadı.',
+                'error': 'Hata oluştu:',
+                'smsFound': 'SMS bulundu:',
+                'addressResult': 'TESLİMAT ADRESİNİZ:',
+                'turkish': '🇹🇷 Türkçe:',
+                'english': '🇬🇧 English:',
+                'bulgarian': '🇧🇬 Български:',
+                'city': 'İl:',
+                'district': 'İlçe:',
+                'neighborhood': 'Mahalle:',
+                'street': 'Sokak:',
+                'buildingNo': 'Kapı No:',
+                'invalidPhone': 'Lütfen sadece 9 haneli telefon numarası girin (örn: 111222333)'
+            },
+            'en': {
+                'welcome': 'Hello!',
+                'helpText': 'How can I help you?',
+                'online': 'Online',
+                'getCode': 'Get Verification Code',
+                'help': 'Help & Information',
+                'searchRef': 'Search by Reference Code',
+                'getAddress': 'Get Delivery Address',
+                'selectSite': 'Select Site',
+                'siteDesc': 'Select a site to get verification code',
+                'searchRefTitle': 'Search Reference Code',
+                'searchRefDesc': 'Search by entering reference code',
+                'refPlaceholder': 'Enter reference code...',
+                'addressTitle': 'Delivery Address',
+                'addressDesc': 'Enter last 9 digits of your phone number',
+                'phonePlaceholder': 'Example: 111222333',
+                'processing': 'Processing...',
+                'send': 'Send',
+                'messagePlaceholder': 'Type your message...',
+                'searching': 'searching...',
+                'noSms': 'No SMS found.',
+                'error': 'Error:',
+                'smsFound': 'SMS found:',
+                'addressResult': 'YOUR DELIVERY ADDRESS:',
+                'turkish': '🇹🇷 Turkish:',
+                'english': '🇬🇧 English:',
+                'bulgarian': '🇧🇬 Bulgarian:',
+                'city': 'City:',
+                'district': 'District:',
+                'neighborhood': 'Neighborhood:',
+                'street': 'Street:',
+                'buildingNo': 'Building No:',
+                'invalidPhone': 'Please enter only 9-digit phone number (e.g., 111222333)'
+            },
+            'bg': {
+                'welcome': 'Здравейте!',
+                'helpText': 'Как мога да ви помогна?',
+                'online': 'Онлайн',
+                'getCode': 'Вземи код за потвърждение',
+                'help': 'Помощ & Информация',
+                'searchRef': 'Търсене с референтен код',
+                'getAddress': 'Вземи адрес за доставка',
+                'selectSite': 'Изберете сайт',
+                'siteDesc': 'Изберете сайт, за да получите код за потвърждение',
+                'searchRefTitle': 'Търсене на референтен код',
+                'searchRefDesc': 'Търсене чрез въвеждане на референтен код',
+                'refPlaceholder': 'Въведете референтен код...',
+                'addressTitle': 'Адрес за доставка',
+                'addressDesc': 'Въведете последните 9 цифри от телефона си',
+                'phonePlaceholder': 'Пример: 111222333',
+                'processing': 'Обработва се...',
+                'send': 'Изпрати',
+                'messagePlaceholder': 'Напишете вашето съобщение...',
+                'searching': 'търси се...',
+                'noSms': 'Не са намерени SMS.',
+                'error': 'Грешка:',
+                'smsFound': 'Намерени SMS:',
+                'addressResult': 'ВАШИЯТ АДРЕС ЗА ДОСТАВКА:',
+                'turkish': '🇹🇷 Турски:',
+                'english': '🇬🇧 Английски:',
+                'bulgarian': '🇧🇬 Български:',
+                'city': 'Област:',
+                'district': 'Община:',
+                'neighborhood': 'Квартал:',
+                'street': 'Улица:',
+                'buildingNo': 'Номер на сграда:',
+                'invalidPhone': 'Моля, въведете само 9-цифрен телефонен номер (напр. 111222333)'
+            }
+        };
+        
         this.init();
+    }
+    
+    // ✅ DİL DEĞİŞTİRME FONKSİYONU EKLENDİ
+    setLanguage(lang) {
+        if (this.translations[lang]) {
+            this.currentLanguage = lang;
+            this.updateUITexts();
+            console.log('Dil değiştirildi:', lang);
+        }
+    }
+    
+    // ✅ ÇEVİRİ FONKSİYONU
+    t(key) {
+        return this.translations[this.currentLanguage][key] || key;
+    }
+    
+    // ✅ UI METİNLERİNİ GÜNCELLE
+    updateUITexts() {
+        const t = this.translations[this.currentLanguage];
+        
+        // Header metinleri
+        const headerTitle = document.querySelector('.header-text h3');
+        if (headerTitle) headerTitle.textContent = 'Shipliyo Assistant';
+        
+        const statusText = document.querySelector('.status small');
+        if (statusText) statusText.textContent = t.online;
+        
+        // Welcome section
+        const welcomeStrong = document.querySelector('.welcome-text strong');
+        if (welcomeStrong) welcomeStrong.textContent = t.welcome;
+        
+        const welcomeP = document.querySelector('.welcome-text p');
+        if (welcomeP) welcomeP.textContent = t.helpText;
+        
+        // Quick actions
+        const actionCards = document.querySelectorAll('.action-card span');
+        if (actionCards.length >= 4) {
+            actionCards[0].textContent = t.getCode;
+            actionCards[1].textContent = t.help;
+            actionCards[2].textContent = t.searchRef;
+            actionCards[3].textContent = t.getAddress;
+        }
+        
+        // View headers
+        const sitesHeader = document.querySelector('#sitesView .view-header h3');
+        if (sitesHeader) sitesHeader.textContent = t.selectSite;
+        
+        const sitesDesc = document.querySelector('#sitesView .view-header p');
+        if (sitesDesc) sitesDesc.textContent = t.siteDesc;
+        
+        const refHeader = document.querySelector('#referenceView .view-header h3');
+        if (refHeader) refHeader.textContent = t.searchRefTitle;
+        
+        const refDesc = document.querySelector('#referenceView .view-header p');
+        if (refDesc) refDesc.textContent = t.searchRefDesc;
+        
+        const addressHeader = document.querySelector('#addressView .view-header h3');
+        if (addressHeader) addressHeader.textContent = t.addressTitle;
+        
+        const addressDesc = document.querySelector('#addressView .view-header p');
+        if (addressDesc) addressDesc.textContent = t.addressDesc;
+        
+        // Input placeholders
+        const refInput = document.getElementById('refCodeInput');
+        if (refInput) refInput.placeholder = t.refPlaceholder;
+        
+        const phoneInput = document.getElementById('phoneInput');
+        if (phoneInput) phoneInput.placeholder = t.phonePlaceholder;
+        
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) chatInput.placeholder = t.messagePlaceholder;
+        
+        // Loading text
+        const loadingText = document.querySelector('#loadingState p');
+        if (loadingText) loadingText.textContent = t.processing;
     }
     
     init() {
@@ -39,6 +222,14 @@ class ShipliyoWidget {
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- ✅ DİL BUTONLARI HEADER'A EKLENDİ -->
+                        <div class="language-buttons">
+                            <button class="lang-btn active" data-lang="tr">🇹🇷</button>
+                            <button class="lang-btn" data-lang="en">🇺🇸</button>
+                            <button class="lang-btn" data-lang="bg">🇧🇬</button>
+                        </div>
+                        
                         <button class="close-btn">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                                 <path d="M14 1.41L12.59 0L7 5.59L1.41 0L0 1.41L5.59 7L0 12.59L1.41 14L7 8.41L12.59 14L14 12.59L8.41 7L14 1.41Z"/>
@@ -160,6 +351,7 @@ class ShipliyoWidget {
         document.body.insertAdjacentHTML('beforeend', widgetHTML);
         this.injectStyles();
         this.loadSites();
+        this.updateUITexts();
     }
     
     injectStyles() {
@@ -241,6 +433,39 @@ class ShipliyoWidget {
                     align-items: center;
                     gap: 12px;
                     flex: 1;
+                }
+                
+                /* ✅ DİL BUTONLARI STİLİ */
+                .language-buttons {
+                    display: flex;
+                    gap: 4px;
+                    margin-right: 8px;
+                }
+                
+                .lang-btn {
+                    width: 32px;
+                    height: 32px;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                }
+                
+                .lang-btn:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                    transform: scale(1.1);
+                }
+                
+                .lang-btn.active {
+                    background: rgba(255, 255, 255, 0.3);
+                    border-color: rgba(255, 255, 255, 0.5);
+                    transform: scale(1.1);
                 }
                 
                 .back-btn {
@@ -587,19 +812,6 @@ class ShipliyoWidget {
                     margin-bottom: 6px;
                     padding: 2px 0;
                 }
-                
-                .language-section {
-                    margin-top: 12px;
-                    padding-top: 12px;
-                    border-top: 1px dashed #e5e7eb;
-                }
-                
-                .language-title {
-                    font-weight: 600;
-                    color: #667eea;
-                    margin-bottom: 8px;
-                    font-size: 13px;
-                }
             </style>
         `;
         
@@ -655,6 +867,20 @@ class ShipliyoWidget {
             if (e.key === 'Enter') {
                 this.processPhoneNumber();
             }
+        });
+        
+        // ✅ DİL BUTONLARI EVENT'LERİ EKLENDİ
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const lang = e.currentTarget.dataset.lang;
+                this.setLanguage(lang);
+                
+                // Buton görünümünü güncelle
+                document.querySelectorAll('.lang-btn').forEach(b => {
+                    b.classList.remove('active');
+                });
+                e.currentTarget.classList.add('active');
+            });
         });
     }
     
@@ -766,24 +992,23 @@ class ShipliyoWidget {
         if (!refCode) return;
         
         this.showChatView();
-        this.addMessage(refCode + " referans kodu aranıyor...", 'user');
+        this.addMessage(refCode + " " + this.t('searching'), 'user');
         
-        // ✅ DEĞİŞTİRİLDİ: API URL absolute yapıldı
         fetch(this.API_BASE_URL + '/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 message: refCode,
                 session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
+                language: this.currentLanguage
             })
         })
         .then(response => response.json())
         .then(data => {
-            this.addMessage(data.response || 'Sonuç bulunamadı', 'bot');
+            this.addMessage(data.response || this.t('noSms'), 'bot');
         })
         .catch(error => {
-            this.addMessage('Arama sırasında hata oluştu', 'bot');
+            this.addMessage(this.t('error') + ' ' + error.message, 'bot');
         });
     }
     
@@ -798,104 +1023,90 @@ class ShipliyoWidget {
             const fullAddress = `BG${phoneNumber} Hatip Mahallesi Fulya Sokak No: 19/A Çorlu, Tekirdağ`;
             
             let addressHTML = `
-                <div style="margin-bottom: 15px; font-weight: 600; color: #667eea;">TESLİMAT ADRESİNİZ:</div>
+                <div style="margin-bottom: 15px; font-weight: 600; color: #667eea;">${this.t('addressResult')}</div>
                 <div style="margin-bottom: 10px; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 8px;">${fullAddress}</div>
                 
                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
-                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇹🇷 Türkçe:</div>
-                    <div>İl: Tekirdağ</div>
-                    <div>İlçe: Çorlu</div>
-                    <div>Mahalle: Hatip</div>
-                    <div>Sokak: Fulya</div>
-                    <div>Kapı No: 19/A</div>
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">${this.t('turkish')}</div>
+                    <div>${this.t('city')} Tekirdağ</div>
+                    <div>${this.t('district')} Çorlu</div>
+                    <div>${this.t('neighborhood')} Hatip</div>
+                    <div>${this.t('street')} Fulya</div>
+                    <div>${this.t('buildingNo')} 19/A</div>
                 </div>
                 
                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
-                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇬🇧 English:</div>
-                    <div>City: Tekirdağ</div>
-                    <div>District: Çorlu</div>
-                    <div>Neighborhood: Hatip</div>
-                    <div>Street: Fulya</div>
-                    <div>Building No: 19/A</div>
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">${this.t('english')}</div>
+                    <div>${this.t('city')} Tekirdağ</div>
+                    <div>${this.t('district')} Çorlu</div>
+                    <div>${this.t('neighborhood')} Hatip</div>
+                    <div>${this.t('street')} Fulya</div>
+                    <div>${this.t('buildingNo')} 19/A</div>
                 </div>
                 
                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;">
-                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">🇧🇬 Български:</div>
-                    <div>Област: Tekirdağ</div>
-                    <div>Община: Çorlu</div>
-                    <div>Квартал: Hatip</div>
-                    <div>Улица: Fulya</div>
-                    <div>Номер на сграда: 19/A</div>
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #667eea;">${this.t('bulgarian')}</div>
+                    <div>${this.t('city')} Tekirdağ</div>
+                    <div>${this.t('district')} Çorlu</div>
+                    <div>${this.t('neighborhood')} Hatip</div>
+                    <div>${this.t('street')} Fulya</div>
+                    <div>${this.t('buildingNo')} 19/A</div>
                 </div>
             `;
             
             resultDiv.innerHTML = addressHTML;
             resultDiv.style.display = 'block';
         } else {
-            resultDiv.innerHTML = '<div style="color: #ef4444;">Lütfen sadece 9 haneli telefon numarası girin (örn: 111222333)</div>';
+            resultDiv.innerHTML = '<div style="color: #ef4444;">' + this.t('invalidPhone') + '</div>';
             resultDiv.style.display = 'block';
         }
     }
     
     selectSite(site) {
-    this.showChatView();
-    this.addMessage(site + ' SMS\'leri aranıyor...', 'user');
-    
-    // ✅ DEĞİŞTİRİLDİ: API URL absolute yapıldı
-    fetch(this.API_BASE_URL + '/api/chatbot', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            message: site,
-            session_id: 'widget_user_' + Date.now(),
-            language: 'tr'
+        this.showChatView();
+        this.addMessage(site + ' ' + this.t('searching'), 'user');
+        
+        fetch(this.API_BASE_URL + '/api/chatbot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: site,
+                session_id: 'widget_user_' + Date.now(),
+                language: this.currentLanguage
+            })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        this.showLoading(false);
-        
-        // DEBUG: DETAYLI LOG
-        console.log('🔍 DEBUG SMS VERİSİ:');
-        console.log('📍 Backend Response:', data);
-        if (data.sms_list && data.sms_list.length > 0) {
-            console.log('📦 İlk SMS raw:', data.sms_list[0].raw);
-            console.log('🔢 İlk SMS code:', data.sms_list[0].code);
-            console.log('🏷️ İlk SMS site:', data.sms_list[0].site);
-        }
-        
-        // SMS LİSTELEME - YENİ FORMAT
-        if (data.sms_list && data.sms_list.length > 0) {
-            let message = `Son 120 saniyede ${data.sms_list.length} adet SMS bulundu:\n\n`;
+        .then(response => response.json())
+        .then(data => {
+            this.showLoading(false);
             
-            data.sms_list.forEach((sms, index) => {
-                // RAW İÇİNDEN KOD ÇIKAR
-                let codeDisplay = sms.code;
-                if (!codeDisplay && sms.raw) {
-                    // Raw içinden 4-6 haneli sayıları çıkar
-                    const codeMatch = sms.raw.match(/\b\d{4,6}\b/);
-                    codeDisplay = codeMatch ? codeMatch[0] : sms.raw;
-                }
+            if (data.sms_list && data.sms_list.length > 0) {
+                let message = this.t('smsFound') + ` ${data.sms_list.length} SMS:\n\n`;
                 
-                // YENİ FORMAT: Her SMS için tek satır
-                message += `${index + 1}. 📱 ${codeDisplay}\n`;
-            });
-            
-            this.addMessage(message, 'bot');
-        } else if (data.response) {
-            this.addMessage(data.response, 'bot');
-        } else {
-            this.addMessage('SMS bulunamadı.', 'bot');
-        }
-    })
-    .catch(error => {
-        this.addMessage('Hata oluştu: ' + error.message, 'bot');
-    });
-}
+                data.sms_list.forEach((sms, index) => {
+                    let codeDisplay = sms.code;
+                    if (!codeDisplay && sms.raw) {
+                        const codeMatch = sms.raw.match(/\b\d{4,6}\b/);
+                        codeDisplay = codeMatch ? codeMatch[0] : sms.raw;
+                    }
+                    
+                    message += `${index + 1}. 📱 ${codeDisplay}\n`;
+                });
+                
+                this.addMessage(message, 'bot');
+            } else if (data.response) {
+                this.addMessage(data.response, 'bot');
+            } else {
+                this.addMessage(this.t('noSms'), 'bot');
+            }
+        })
+        .catch(error => {
+            this.addMessage(this.t('error') + ' ' + error.message, 'bot');
+        });
+    }
     
     showHelp() {
         this.showChatView();
-        this.addMessage('Yardım istiyorum', 'user');
+        this.addMessage(this.t('help'), 'user');
         
         this.addMessage('Shipliyo Asistan size şu konularda yardımcı olabilir:\n\n• Doğrulama kodlarınızı almak\n• SMS geçmişinizi görüntülemek\n• Site bazlı filtreleme yapmak\n• Referans kodları ile arama yapmak\n• Teslimat adresinizi almak\n\nBir site seçerek işleme başlayabilirsiniz.', 'bot');
     }
@@ -912,14 +1123,13 @@ class ShipliyoWidget {
         this.addMessage(message, 'user');
         input.value = '';
         
-        // ✅ DEĞİŞTİRİLDİ: API URL absolute yapıldı
         fetch(this.API_BASE_URL + '/api/chatbot', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 message: message,
                 session_id: 'widget_user_' + Date.now(),
-                language: 'tr'
+                language: this.currentLanguage
             })
         })
         .then(response => response.json())
@@ -927,23 +1137,21 @@ class ShipliyoWidget {
             this.addMessage(data.response || 'Anladım', 'bot');
         })
         .catch(error => {
-            this.addMessage('Mesajınız iletilemedi', 'bot');
+            this.addMessage(this.t('error') + ' ' + error.message, 'bot');
         });
     }
     
-    // addMessage fonksiyonunu değiştirelim:
-addMessage(text, sender) {
-    const container = document.getElementById('messagesContainer');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message message-${sender}`;
-    
-    // Newline karakterlerini <br> ile değiştir
-    const formattedText = text.replace(/\n/g, '<br>');
-    messageDiv.innerHTML = formattedText;
-    
-    container.appendChild(messageDiv);
-    container.scrollTop = container.scrollHeight;
-}
+    addMessage(text, sender) {
+        const container = document.getElementById('messagesContainer');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${sender}`;
+        
+        const formattedText = text.replace(/\n/g, '<br>');
+        messageDiv.innerHTML = formattedText;
+        
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    }
     
     showLoading(show) {
         document.getElementById('loadingState').style.display = show ? 'flex' : 'none';
