@@ -26,9 +26,45 @@
             color: #666;
             font-size: 16px;
         }
+        
+        /* DİL BUTONLARI */
+        .language-buttons {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        .lang-btn {
+            padding: 8px 16px;
+            border: 2px solid #0066CC;
+            background: white;
+            color: #0066CC;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .lang-btn:hover {
+            background: #0066CC;
+            color: white;
+        }
+        .lang-btn.active {
+            background: #0066CC;
+            color: white;
+        }
     </style>
 </head>
 <body>
+    <!-- DİL BUTONLARI -->
+    <div class="language-buttons">
+        <button class="lang-btn active" onclick="changeLanguage('tr')">🇹🇷 TR</button>
+        <button class="lang-btn" onclick="changeLanguage('en')">🇺🇸 EN</button>
+        <button class="lang-btn" onclick="changeLanguage('bg')">🇧🇬 BG</button>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>Shipliyo Chatbot</h1>
@@ -37,5 +73,32 @@
     </div>
 
     <script src="/static/shipliyo-widget.js"></script>
+    
+    <script>
+        function changeLanguage(lang) {
+            // Butonları güncelle
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Chatbot dilini değiştir - main.js'deki doğru fonksiyon ismini buraya yazacağız
+            if (window.shipliyoWidget && window.shipliyoWidget.setLanguage) {
+                window.shipliyoWidget.setLanguage(lang);
+            }
+            
+            // Sayfa başlığını güncelle
+            updatePageTitle(lang);
+        }
+        
+        function updatePageTitle(lang) {
+            const titles = {
+                'tr': 'Shipliyo Chatbot',
+                'en': 'Shipliyo Chatbot', 
+                'bg': 'Shipliyo Chatbot'
+            };
+            document.title = titles[lang] || titles['tr'];
+        }
+    </script>
 </body>
 </html>
