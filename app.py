@@ -1,6 +1,9 @@
 from flask import Flask, request, jsonify, Response, render_template
 from flask_cors import CORS
 from datetime import datetime, timedelta
+import iyzipay  # <--- Bunu importların en tepesine ekle
+import base64   # <--- Bunu da ekle
+import json
 import os
 import re
 import psycopg2
@@ -279,6 +282,167 @@ def chatbot_handler():
             "response": "Sistem hatası oluştu",
             "response_type": "direct"
         }), 500
+
+# ==================== IYZICO ÖDEME ENTEGRASYONU ====================
+
+@app.route('/api/create-payment', methods=['POST'])
+def create_payment():
+    try:
+        # 1. Gelen isteği al
+        if not request.is_json:
+            return jsonify({"status": "error", "message": "JSON verisi gerekli"}), 400
+            
+        data = request.get_json()
+        client_id = data.get('client_id')  # Örn: BG111222
+        amount = data.get('amount')        # Örn: 50.0 (Euro veya TL)
+        email = data.get('email', 'musteri@shipliyo.com') # Kullanıcı emaili (opsiyonel)
+        
+        # Basit validasyonlar
+        if not client_id or not amount:
+            return jsonify({"status": "error", "message": "Eksik parametre (client_id veya amount)"}), 400
+
+        # Güvenlik: Minimum tutar kontrolü
+        try:
+            amount_val = float(amount)
+            if amount_val < 1.0:
+                 return jsonify({"status": "error", "message": "Minimum ödeme tutarı 1.0 birimdir."}), 400
+        except ValueError:
+            return jsonify({"status": "error", "message": "Geçersiz tutar formatı"}), 400
+
+        # 2. Iyzico Ayarları (Railway Env Variable'dan oku)
+        options = iyzipay.Options()
+        options.api_key = os.environ.get('IYZICO_API_KEY')
+        options.secret_key = os.environ.get('IYZICO_SECRET_KEY')
+        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://sandbox-api.iyzipay.com') # Canlı için: https://api.iyzipay.com
+
+        # 3. Ödeme Formunu Hazırla
+        request_obj = {
+            'locale': 'tr',
+            'conversationId': f'{client_id}_{int(time.time())}', # Sipariş Numarası gibi benzersiz ID
+            'price': str(amount),
+            'paidPrice': str(amount),
+            'currency': 'EUR',  # Burayı TRY veya EUR yapabilirsin. Iyzico EUR destekliyor mu kontrol etmelisin. Yoksa TRY'ye çevirip gönder.
+            'basketId': f'BASKET_{client_id}',
+            'paymentGroup': 'PRODUCT',
+            'callbackUrl': f"https://{request.host}/api/payment-callback", # Ödeme bitince Iyzico buraya haber verecek
+            'enabledInstallments': ['1'], # Taksit seçenekleri (1 = tek çekim)
+            'buyer': {
+                'id': client_id,
+                'name': client_id, # Gerçek isim varsa onu kullan
+                'surname': 'Shipliyo User',
+                'gsmNumber': '+905555555555', # Zorunlu alan, kullanıcıdan alabilirsen harika olur
+                'email': email,
+                'identityNumber': '11111111111', # Bireysel ise zorunlu TC, Yabancı ise pasaport no vs. (Test için 111..)
+                'lastLoginDate': '2015-10-05 12:43:35',
+                'registrationDate': '2013-04-21 15:12:09',
+                'registrationAddress': 'Bulgaristan',
+                'ip': request.remote_addr,
+                'city': 'Sofia',
+                'country': 'Bulgaria',
+                'zipCode': '1000'
+            },
+            'shippingAddress': {
+                'contactName': client_id,
+                'city': 'Sofia',
+                'country': 'Bulgaria',
+                'address': 'Teslimat Adresi',
+                'zipCode': '1000'
+            },
+            'billingAddress': {
+                'contactName': client_id,
+                'city': 'Sofia',
+                'country': 'Bulgaria',
+                'address': 'Fatura Adresi',
+                'zipCode': '1000'
+            },
+            'basketItems': [
+                {
+                    'id': 'BI101',
+                    'name': 'Bakiye Yükleme',
+                    'category1': 'Hizmet',
+                    'itemType': 'VIRTUAL',
+                    'price': str(amount)
+                }
+            ]
+        }
+
+        # 4. Iyzico'ya İsteği Gönder
+        checkout_form_initialize = iyzipay.CheckoutFormInitialize().create(request_obj, options)
+        
+        # Yanıtı al
+        # Iyzico kütüphanesi yanıtı bir nesne olarak döndürür, onu dict'e çevirelim veya doğrudan okuyalım
+        # Kütüphane sürümüne göre değişebilir ama genelde read() sonucu JSON string döner
+        
+        print(f"Iyzico Response: {checkout_form_initialize.read().decode('utf-8')}") # Debug için
+        
+        response_data = json.loads(checkout_form_initialize.read().decode('utf-8'))
+
+        if response_data.get('status') == 'success':
+            # Başarılı ise HTML içeriğini (script kodunu) Flutter'a gönder
+            return jsonify({
+                "status": "success",
+                "html_content": response_data.get('checkoutFormContent'),
+                "token": response_data.get('token'),
+                "page_url": response_data.get('paymentPageUrl') # Bazı entegrasyonlarda direkt link verir
+            })
+        else:
+             return jsonify({
+                "status": "error", 
+                "message": response_data.get('errorMessage', 'Iyzico hatası')
+            }), 400
+
+    except Exception as e:
+        print(f"❌ CREATE PAYMENT HATASI: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ==================== ÖDEME SONUCU (CALLBACK) ====================
+
+@app.route('/api/payment-callback', methods=['POST'])
+def payment_callback():
+    """Iyzico ödeme sonrası buraya POST atar"""
+    try:
+        token = request.form.get('token')
+        print(f"Ödeme Dönüşü Token: {token}")
+        
+        if not token:
+             return "Token bulunamadı", 400
+
+        # Token ile ödeme sonucunu sorgula
+        options = iyzipay.Options()
+        options.api_key = os.environ.get('IYZICO_API_KEY')
+        options.secret_key = os.environ.get('IYZICO_SECRET_KEY')
+        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://sandbox-api.iyzipay.com')
+
+        request_obj = {
+            'locale': 'tr',
+            'token': token
+        }
+        
+        checkout_form_auth = iyzipay.CheckoutForm().retrieve(request_obj, options)
+        result = json.loads(checkout_form_auth.read().decode('utf-8'))
+
+        if result.get('status') == 'success' and result.get('paymentStatus') == 'SUCCESS':
+            # ÖDEME BAŞARILI!
+            
+            # 1. conversationId içinden Client ID'yi ayıkla (BG111222_1709...)
+            conversation_id = result.get('conversationId')
+            client_id = conversation_id.split('_')[0]
+            paid_price = result.get('paidPrice')
+            
+            print(f"💰 Ödeme Başarılı! Client: {client_id}, Tutar: {paid_price}")
+
+            # 2. BURADA GOOGLE SHEET VEYA VERİTABANINI GÜNCELLE
+            # update_balance(client_id, paid_price) # Bu fonksiyonu senin yazman gerekebilir
+            
+            # Kullanıcıya "Başarılı" sayfası göster
+            return render_template('payment_success.html', amount=paid_price)
+        else:
+            print(f"❌ Ödeme Başarısız: {result.get('errorMessage')}")
+            return render_template('payment_failed.html', error=result.get('errorMessage'))
+
+    except Exception as e:
+         print(f"Callback Hatası: {e}")
+         return "Sistem hatası", 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
