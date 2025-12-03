@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, Response, render_template
 from flask_cors import CORS
 from datetime import datetime, timedelta
-import iyzipay  # <--- Bunu importların en tepesine ekle
-import base64   # <--- Bunu da ekle
+from iyzipay.options import Options
+from iyzipay.checkout_form_initialize import CheckoutFormInitialize
+from iyzipay.checkout_form import CheckoutForm
 import json
 import os
 import re
@@ -299,21 +300,13 @@ def create_payment():
         
         # Basit validasyonlar
         if not client_id or not amount:
-            return jsonify({"status": "error", "message": "Eksik parametre (client_id veya amount)"}), 400
-
-        # Güvenlik: Minimum tutar kontrolü
-        try:
-            amount_val = float(amount)
-            if amount_val < 1.0:
-                 return jsonify({"status": "error", "message": "Minimum ödeme tutarı 1.0 birimdir."}), 400
-        except ValueError:
-            return jsonify({"status": "error", "message": "Geçersiz tutar formatı"}), 400
+            return jsonify({"status": "error", "message": "Eksik parametre"}), 400
 
         # 2. Iyzico Ayarları (Railway Env Variable'dan oku)
-        options = iyzipay.Options()
+        options = Options()
         options.api_key = os.environ.get('IYZICO_API_KEY')
         options.secret_key = os.environ.get('IYZICO_SECRET_KEY')
-        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://sandbox-api.iyzipay.com') # Canlı için: https://api.iyzipay.com
+        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://api.iyzipay.com') # Canlı için: https://api.iyzipay.com
 
         # 3. Ödeme Formunu Hazırla
         request_obj = {
@@ -336,7 +329,7 @@ def create_payment():
                 'lastLoginDate': '2015-10-05 12:43:35',
                 'registrationDate': '2013-04-21 15:12:09',
                 'registrationAddress': 'Bulgaristan',
-                'ip': request.remote_addr,
+                'ip': request.remote_addr or '127.0.0.1',
                 'city': 'Sofia',
                 'country': 'Bulgaria',
                 'zipCode': '1000'
@@ -373,9 +366,10 @@ def create_payment():
         # Iyzico kütüphanesi yanıtı bir nesne olarak döndürür, onu dict'e çevirelim veya doğrudan okuyalım
         # Kütüphane sürümüne göre değişebilir ama genelde read() sonucu JSON string döner
         
-        print(f"Iyzico Response: {checkout_form_initialize.read().decode('utf-8')}") # Debug için
+        response_content = checkout_form_initialize.read().decode('utf-8')
+        print(f"Iyzico Response: {response_content}") 
         
-        response_data = json.loads(checkout_form_initialize.read().decode('utf-8'))
+        response_data = json.loads(response_content)
 
         if response_data.get('status') == 'success':
             # Başarılı ise HTML içeriğini (script kodunu) Flutter'a gönder
@@ -402,16 +396,15 @@ def payment_callback():
     """Iyzico ödeme sonrası buraya POST atar"""
     try:
         token = request.form.get('token')
-        print(f"Ödeme Dönüşü Token: {token}")
         
         if not token:
              return "Token bulunamadı", 400
 
         # Token ile ödeme sonucunu sorgula
-        options = iyzipay.Options()
+        options = Options()
         options.api_key = os.environ.get('IYZICO_API_KEY')
         options.secret_key = os.environ.get('IYZICO_SECRET_KEY')
-        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://sandbox-api.iyzipay.com')
+        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://api.iyzipay.com')
 
         request_obj = {
             'locale': 'tr',
@@ -437,7 +430,6 @@ def payment_callback():
             # Kullanıcıya "Başarılı" sayfası göster
             return render_template('payment_success.html', amount=paid_price)
         else:
-            print(f"❌ Ödeme Başarısız: {result.get('errorMessage')}")
             return render_template('payment_failed.html', error=result.get('errorMessage'))
 
     except Exception as e:
