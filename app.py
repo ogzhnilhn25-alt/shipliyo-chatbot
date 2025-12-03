@@ -289,45 +289,45 @@ def chatbot_handler():
 @app.route('/api/create-payment', methods=['POST'])
 def create_payment():
     try:
-        # 1. Gelen isteği al
+        # Import kontrolü (Güvenlik için kalsın)
+        import iyzipay 
+    except ImportError:
+        return jsonify({"status": "error", "message": "Iyzico kütüphanesi yüklenemedi"}), 500
+
+    try:
         if not request.is_json:
             return jsonify({"status": "error", "message": "JSON verisi gerekli"}), 400
             
         data = request.get_json()
-        client_id = data.get('client_id')  # Örn: BG111222
-        amount = data.get('amount')        # Örn: 50.0 (Euro veya TL)
-        email = data.get('email', 'musteri@shipliyo.com') # Kullanıcı emaili (opsiyonel)
+        client_id = data.get('client_id')
+        amount = data.get('amount')
+        email = data.get('email', 'musteri@shipliyo.com')
         
-        # Basit validasyonlar
-        if not client_id or not amount:
-            return jsonify({"status": "error", "message": "Eksik parametre"}), 400
-
-        # 2. Iyzico Ayarları (Railway Env Variable'dan oku)
-        options = Options()
+        # ✅ DÜZELTME 1: Başlarına 'iyzipay.' ekledik
+        options = iyzipay.Options()
         options.api_key = os.environ.get('IYZICO_API_KEY')
         options.secret_key = os.environ.get('IYZICO_SECRET_KEY')
-        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://api.iyzipay.com') # Canlı için: https://api.iyzipay.com
+        options.base_url = os.environ.get('IYZICO_BASE_URL', 'https://api.iyzipay.com')
 
-        # 3. Ödeme Formunu Hazırla
         request_obj = {
             'locale': 'tr',
-            'conversationId': f'{client_id}_{int(time.time())}', # Sipariş Numarası gibi benzersiz ID
+            'conversationId': f'{client_id}_{int(time.time())}',
             'price': str(amount),
             'paidPrice': str(amount),
-            'currency': 'EUR',  # Burayı TRY veya EUR yapabilirsin. Iyzico EUR destekliyor mu kontrol etmelisin. Yoksa TRY'ye çevirip gönder.
+            'currency': 'EUR',
             'basketId': f'BASKET_{client_id}',
             'paymentGroup': 'PRODUCT',
-            'callbackUrl': f"https://{request.host}/api/payment-callback", # Ödeme bitince Iyzico buraya haber verecek
-            'enabledInstallments': ['1'], # Taksit seçenekleri (1 = tek çekim)
+            'callbackUrl': f"https://{request.host}/api/payment-callback",
+            'enabledInstallments': ['1'],
             'buyer': {
                 'id': client_id,
-                'name': client_id, # Gerçek isim varsa onu kullan
+                'name': client_id,
                 'surname': 'Shipliyo User',
-                'gsmNumber': '+905555555555', # Zorunlu alan, kullanıcıdan alabilirsen harika olur
+                'gsmNumber': '+905555555555',
                 'email': email,
-                'identityNumber': '11111111111', # Bireysel ise zorunlu TC, Yabancı ise pasaport no vs. (Test için 111..)
-                'lastLoginDate': '2015-10-05 12:43:35',
-                'registrationDate': '2013-04-21 15:12:09',
+                'identityNumber': '11111111111',
+                'lastLoginDate': '2024-01-01 12:00:00',
+                'registrationDate': '2024-01-01 12:00:00',
                 'registrationAddress': 'Bulgaristan',
                 'ip': request.remote_addr or '127.0.0.1',
                 'city': 'Sofia',
@@ -351,7 +351,7 @@ def create_payment():
             'basketItems': [
                 {
                     'id': 'BI101',
-                    'name': 'Bakiye Yükleme',
+                    'name': 'Bakiye Yukleme',
                     'category1': 'Hizmet',
                     'itemType': 'VIRTUAL',
                     'price': str(amount)
@@ -359,12 +359,8 @@ def create_payment():
             ]
         }
 
-        # 4. Iyzico'ya İsteği Gönder
+        # ✅ DÜZELTME 2: Burada da 'iyzipay.' ekledik
         checkout_form_initialize = iyzipay.CheckoutFormInitialize().create(request_obj, options)
-        
-        # Yanıtı al
-        # Iyzico kütüphanesi yanıtı bir nesne olarak döndürür, onu dict'e çevirelim veya doğrudan okuyalım
-        # Kütüphane sürümüne göre değişebilir ama genelde read() sonucu JSON string döner
         
         response_content = checkout_form_initialize.read().decode('utf-8')
         print(f"Iyzico Response: {response_content}") 
@@ -372,12 +368,11 @@ def create_payment():
         response_data = json.loads(response_content)
 
         if response_data.get('status') == 'success':
-            # Başarılı ise HTML içeriğini (script kodunu) Flutter'a gönder
             return jsonify({
                 "status": "success",
                 "html_content": response_data.get('checkoutFormContent'),
                 "token": response_data.get('token'),
-                "page_url": response_data.get('paymentPageUrl') # Bazı entegrasyonlarda direkt link verir
+                "page_url": response_data.get('paymentPageUrl')
             })
         else:
              return jsonify({
@@ -388,7 +383,7 @@ def create_payment():
     except Exception as e:
         print(f"❌ CREATE PAYMENT HATASI: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
-
+        
 # ==================== ÖDEME SONUCU (CALLBACK) ====================
 
 @app.route('/api/payment-callback', methods=['POST'])
