@@ -195,6 +195,7 @@ class ShipliyoWidget {
     init() {
         this.createWidget();
         this.attachEvents();
+	this.checkAutoOpen();
     }
     
     createWidget() {
