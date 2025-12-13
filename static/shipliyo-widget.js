@@ -197,6 +197,31 @@ class ShipliyoWidget {
         this.attachEvents();
 	this.checkAutoOpen();
     }
+
+    // ✅ GÜNCELLENMİŞ FONKSİYON
+    checkAutoOpen() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('open') === 'true') {
+            console.log("🚀 Oto-açılış komutu alındı, bekleniyor...");
+            
+            // ⚠️ 500 milisaniye (yarım saniye) bekle ki Widget tam yüklensin
+            setTimeout(() => {
+                if (!this.isOpen) {
+                    this.toggleWidget();
+                    console.log("✅ Widget açıldı!");
+                }
+            }, 500); 
+        }
+
+        const action = urlParams.get('action');
+        if (action) {
+            setTimeout(() => {
+                if (!this.isOpen) this.toggleWidget();
+                this.handleAction(action);
+            }, 500);
+        }
+    }
     
     createWidget() {
         const widgetHTML = `
