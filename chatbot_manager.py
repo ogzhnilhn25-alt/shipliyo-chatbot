@@ -12,32 +12,65 @@ class ChatbotManager:
     def __init__(self):
         self.sms_parser = SMSParser()
         self.response_manager = ResponseManager()
-        # self.db_connected flag'ini kaldırdık. 
-        # Bağlantı durumunu "o an" kontrol etmek en sağlıklısıdır.
 
     def get_db_connection(self):
         """
-        PostgreSQL bağlantısı oluştur (Zırhlı Versiyon)
-        Railway Public Proxy (ballast) kopmalarına karşı dirençli.
+        PostgreSQL bağlantısı oluştur (Akıllı Versiyon)
+        Önce Private (İç) ağı dener, bulamazsa Public (Dış) ağı dener.
         """
-        database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            print("❌ DATABASE_URL environment variable bulunamadı")
+        
+        # 1. ADIM: Doğru URL'i Tespit Etme Stratejisi
+        db_url = None
+        connection_source = "Unknown"
+
+        # Seçenek A: Direkt Private URL var mı?
+        if os.environ.get('DATABASE_PRIVATE_URL'):
+            db_url = os.environ.get('DATABASE_PRIVATE_URL')
+            connection_source = "DATABASE_PRIVATE_URL (Gizli Ağ)"
+        
+        # Seçenek B: Railway'in otomatik verdiği PG değişkenleri var mı? (En Sağlıklısı)
+        elif os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
+            try:
+                # PG değişkenlerinden URL oluştur
+                pghost = os.environ.get('PGHOST')
+                pguser = os.environ.get('PGUSER')
+                pgpass = os.environ.get('PGPASSWORD')
+                pgport = os.environ.get('PGPORT')
+                pgdb = os.environ.get('PGDATABASE')
+                
+                if pghost and pguser and pgdb:
+                    db_url = f"postgres://{pguser}:{pgpass}@{pghost}:{pgport}/{pgdb}"
+                    connection_source = "PG Variables (Otomatik İç Ağ)"
+            except Exception as e:
+                print(f"⚠️ PG Değişkenleri ile URL oluşturulamadı: {e}")
+
+        # Seçenek C: Hiçbiri yoksa, eldeki (muhtemelen Public/Ballast) URL'i kullan
+        if not db_url:
+            db_url = os.environ.get('DATABASE_URL')
+            connection_source = "DATABASE_URL (Mevcut Ayar)"
+
+        if not db_url:
+            print("❌ HATA: Hiçbir veritabanı adresi bulunamadı!")
+            self._print_debug_vars() # Hangi değişkenler var görelim
             return None
         
-        # SSL modunu zorla
-        if "sslmode" not in database_url:
-            if "?" in database_url:
-                database_url += "&sslmode=require"
-            else:
-                database_url += "?sslmode=require"
+        # Eğer hala 'ballast' kullanıyorsak uyarı ver
+        if 'ballast' in db_url:
+            print(f"⚠️ UYARI: Hala Public Proxy ({connection_source}) kullanılıyor. Bağlantı kopabilir.")
+        else:
+            print(f"✅ İYİ HABER: Internal Network ({connection_source}) kullanılıyor.")
 
+        # SSL modunu ayarla
+        if "sslmode" not in db_url:
+            symbol = "&" if "?" in db_url else "?"
+            db_url += f"{symbol}sslmode=require"
+
+        # 2. ADIM: Bağlantı Denemesi (Retry Mekanizması)
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                # Keepalive ayarları ile bağlantı
                 conn = psycopg2.connect(
-                    database_url,
+                    db_url,
                     keepalives=1,
                     keepalives_idle=30,
                     keepalives_interval=10,
@@ -49,18 +82,40 @@ class ChatbotManager:
                 cur = conn.cursor()
                 cur.execute("SET TIME ZONE 'Europe/Istanbul'")
                 cur.close()
-                conn.commit() # Set timezone işlemini commit et
+                conn.commit()
                 
                 return conn
+            
             except OperationalError as e:
                 print(f"⚠️ Chatbot DB Bağlantı hatası (Deneme {attempt+1}/{max_retries}): {e}")
+                print(f"🔗 Denenen Kaynak: {connection_source}")
                 time.sleep(1)
             except Exception as e:
                 print(f"❌ Kritik PostgreSQL bağlantı hatası: {e}")
                 return None
         
+        # 3. ADIM: Tüm denemeler başarısızsa Dedektif Modunu çalıştır
         print("❌ Chatbot: Veritabanına bağlanılamadı.")
+        self._print_debug_vars()
         return None
+
+    def _print_debug_vars(self):
+        """Hata anında ortamdaki veritabanı değişkenlerini (değerlerini gizleyerek) listeler"""
+        print("🔍 --- DEDEKTİF MODU: Mevcut Çevre Değişkenleri ---")
+        try:
+            keys = [k for k in os.environ.keys() if 'PG' in k or 'DB' in k or 'DATABASE' in k or 'RAILWAY' in k]
+            if not keys:
+                print("⚠️ Hiçbir veritabanı değişkeni (PG*, DATABASE*) bulunamadı!")
+            for k in keys:
+                val = os.environ[k]
+                # Değerin içeriğini gizle ama ipucu ver (örn: ballast var mı?)
+                hint = "Private/Internal IP"
+                if "ballast" in val: hint = "PUBLIC PROXY (Sorunlu)"
+                elif val.startswith("postgres://"): hint = "Connection String"
+                print(f"   🔑 {k}: [{hint}]")
+            print("------------------------------------------------")
+        except:
+            pass
 
     def detect_intent(self, message: str, language: str) -> str:
         """Mesajın intent'ini tespit eder"""
