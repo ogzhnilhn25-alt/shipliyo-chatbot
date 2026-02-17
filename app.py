@@ -195,9 +195,21 @@ def create_tables():
 create_tables()
 
 # ==================== ROUTE HANDLERS ====================
+# Mevcut home fonksiyonunu silip bunu yapıştır:
 @app.route('/')
 def home():
-    return "Shipliyo SMS Backend is Running 🚀"
+    try:
+        # templates/index.html dosyasını arar ve sunar
+        return render_template('index.html')
+    except Exception as e:
+        # Eğer dosya yoksa hata mesajı döner
+        return f"<h3>Arayüz Yüklenemedi</h3><p>Hata: {e}</p><p>Lütfen 'templates/index.html' dosyasının var olduğundan emin olun.</p>"
+
+**Bunu yaptıktan sonra:**
+1.  Kodları Railway'e pushla (veya deploy et).
+2.  Web sitene (`https://...up.railway.app`) girdiğinde artık o sıkıcı yazı yerine, çalışan ve veritabanına bağlı bir **Chatbot Arayüzü** göreceksin.
+
+Hadi bakalım, son dokunuşu da yapalım! 🚀
 
 @app.route('/health', methods=['GET'])
 def health_check():

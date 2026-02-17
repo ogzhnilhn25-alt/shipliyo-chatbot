@@ -5,9 +5,12 @@ class ShipliyoWidget {
         this.isLoading = false;
         this.currentView = 'main';
         this.viewHistory = []; // Navigation history
-        this.API_BASE_URL = 'https://shipliyo-chatbot-production.up.railway.app';
         
-        // ✅ DİL DEĞİŞKENİ EKLENDİ
+        // ✅ DÜZELTME 1: API Adresini boş bırakıyoruz. 
+        // Böylece tarayıcı otomatik olarak bulunduğu adresi (origin) kullanır.
+        // CORS hatalarını önler.
+        this.API_BASE_URL = ''; 
+        
         this.currentLanguage = 'tr';
         this.translations = {
             'tr': {
@@ -117,7 +120,6 @@ class ShipliyoWidget {
         this.init();
     }
     
-    // ✅ DİL DEĞİŞTİRME FONKSİYONU EKLENDİ
     setLanguage(lang) {
         if (this.translations[lang]) {
             this.currentLanguage = lang;
@@ -126,12 +128,10 @@ class ShipliyoWidget {
         }
     }
     
-    // ✅ ÇEVİRİ FONKSİYONU
     t(key) {
         return this.translations[this.currentLanguage][key] || key;
     }
     
-    // ✅ UI METİNLERİNİ GÜNCELLE
     updateUITexts() {
         const t = this.translations[this.currentLanguage];
         
@@ -195,17 +195,15 @@ class ShipliyoWidget {
     init() {
         this.createWidget();
         this.attachEvents();
-	this.checkAutoOpen();
+        this.checkAutoOpen();
     }
 
-    // ✅ GÜNCELLENMİŞ FONKSİYON
     checkAutoOpen() {
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.get('open') === 'true') {
             console.log("🚀 Oto-açılış komutu alındı, bekleniyor...");
             
-            // ⚠️ 500 milisaniye (yarım saniye) bekle ki Widget tam yüklensin
             setTimeout(() => {
                 if (!this.isOpen) {
                     this.toggleWidget();
@@ -249,7 +247,6 @@ class ShipliyoWidget {
                             </div>
                         </div>
                         
-                        <!-- ✅ DİL BUTONLARI HEADER'A EKLENDİ -->
                         <div class="language-buttons">
                             <button class="lang-btn active" data-lang="tr">🇹🇷</button>
                             <button class="lang-btn" data-lang="en">🇺🇸</button>
@@ -378,6 +375,16 @@ class ShipliyoWidget {
         this.injectStyles();
         this.loadSites();
         this.updateUITexts();
+
+        // ✅ DÜZELTME 2: LOADER'I GİZLİYORUZ
+        const loader = document.querySelector('.loader-container');
+        if (loader) {
+            // Hafif bir gecikme ekleyerek geçişin yumuşak olmasını sağlayalım
+            setTimeout(() => {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 500);
+            }, 500);
+        }
     }
     
     injectStyles() {
@@ -461,7 +468,6 @@ class ShipliyoWidget {
                     flex: 1;
                 }
                 
-                /* ✅ DİL BUTONLARI STİLİ */
                 .language-buttons {
                     display: flex;
                     gap: 4px;
@@ -895,7 +901,7 @@ class ShipliyoWidget {
             }
         });
         
-        // ✅ DİL BUTONLARI EVENT'LERİ EKLENDİ
+        // ✅ DİL BUTONLARI EVENT'LERİ
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const lang = e.currentTarget.dataset.lang;
