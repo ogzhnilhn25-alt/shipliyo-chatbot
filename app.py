@@ -84,7 +84,6 @@ CORS(app, origins=["*"])
 
 # ==================== DEDEKTİF MODU ====================
 def print_env_debug():
-    """Hangi DB değişkenlerinin mevcut olduğunu loglar"""
     print("\n🔍 --- DEDEKTİF MODU: BAŞLANGIÇ KONTROLÜ ---")
     keys = [k for k in os.environ.keys() if 'PG' in k or 'DB' in k or 'DATABASE' in k]
     if not keys:
@@ -97,26 +96,20 @@ def print_env_debug():
         print(f"   🔑 {k}: [{hint}]")
     print("------------------------------------------------\n")
 
-# ==================== DB BAĞLANTISI (Fix GSSAPI) ====================
+# ==================== KABA KUVVET DB BAĞLANTISI ====================
 def get_db_connection():
     """
-    Public Proxy bağlantısı için GSSAPI devre dışı bırakılmış bağlantı fonksiyonu.
+    3 Farklı yöntemle bağlanmayı dener.
+    Hangisi tutarsa onu kullanır.
     """
     
-    # 1. URL TESPİTİ
-    db_url = None
-    
-    # A Planı: Private URL
-    if os.environ.get('DATABASE_PRIVATE_URL'):
-        db_url = os.environ.get('DATABASE_PRIVATE_URL')
-    
-    # B Planı: Internal Variables
-    elif os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
+    # 1. URL'i bul
+    db_url = os.environ.get('DATABASE_PRIVATE_URL')
+    if not db_url and os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
          try:
             db_url = f"postgres://{os.environ.get('PGUSER')}:{os.environ.get('PGPASSWORD')}@{os.environ.get('PGHOST')}:{os.environ.get('PGPORT')}/{os.environ.get('PGDATABASE')}"
          except: pass
     
-    # C Planı: Public URL (Fallback)
     if not db_url:
         db_url = os.environ.get('DATABASE_URL')
 
@@ -124,38 +117,41 @@ def get_db_connection():
         print("❌ HATA: DB URL bulunamadı.")
         return None
 
-    # URL Debug (Şifre gizleme)
-    try:
-        masked_url = re.sub(r':([^:@]+)@', ':****@', db_url)
-        # print(f"🔗 Bağlanılan URL: {masked_url}") # Güvenlik için loga çok basma
-    except: pass
+    # URL'den mevcut sslmode parametrelerini temizle (biz kendimiz ekleyeceğiz)
+    base_url = db_url.split('?')[0]
 
-    # 2. BAĞLANTI PARAMETRELERİ
-    # SSL ve GSSAPI ayarları
-    conn_args = {
-        'dsn': db_url,
-        'connect_timeout': 10,
-        'gssencmode': 'disable',  # <--- KRİTİK AYAR: Proxy'lerdeki el sıkışma hatasını çözer
-    }
-    
-    # SSL Mode kontrolü
-    if "sslmode" not in db_url:
-        conn_args['sslmode'] = 'require'
+    # DENENECEK STRATEJİLER
+    strategies = [
+        # 1. Strateji: Standart Güvenli (Public Proxy genelde bunu ister)
+        {'sslmode': 'require', 'gssencmode': 'disable', 'connect_timeout': 10},
+        
+        # 2. Strateji: SSL Kapalı (Proxy SSL handshake hatası veriyorsa bu çalışabilir)
+        {'sslmode': 'disable', 'gssencmode': 'disable', 'connect_timeout': 10},
+        
+        # 3. Strateji: Ne olursa olsun (Allow)
+        {'sslmode': 'allow', 'connect_timeout': 10}
+    ]
 
-    # 3. BAĞLANTI DENEMESİ
-    max_retries = 3
-    for attempt in range(max_retries):
+    for i, params in enumerate(strategies):
         try:
-            conn = psycopg2.connect(**conn_args)
+            # Parametreleri birleştir
+            conn_params = {'dsn': base_url, **params}
+            
+            # print(f"🔌 Bağlantı Denemesi #{i+1}: {params['sslmode']}...") 
+            
+            conn = psycopg2.connect(**conn_params)
+            
+            # Eğer buraya geldiyse bağlanmış demektir!
+            # print(f"✅ BAŞARILI! Çalışan Mod: {params['sslmode']}")
             return conn
+            
         except OperationalError as e:
-            print(f"⚠️ Bağlantı hatası (Deneme {attempt+1}/{max_retries}): {e}")
-            time.sleep(2)
+            # print(f"⚠️ Deneme #{i+1} Başarısız: {e}")
+            pass
         except Exception as e:
-            print(f"❌ Kritik Hata: {e}")
-            return None
-    
-    print("❌ Veritabanına bağlanılamadı.")
+            print(f"❌ Beklenmeyen Hata (#{i+1}): {e}")
+
+    print("❌ Veritabanına bağlanılamadı (Tüm stratejiler tükendi).")
     return None
 
 # ==================== TABLE CREATION ====================
