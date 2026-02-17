@@ -13,7 +13,7 @@ from collections import defaultdict
 from dotenv import load_dotenv
 load_dotenv()
 
-# Güvenlik modülleri (Yoksa patlamasın diye try-except)
+# Güvenlik modülleri
 try:
     from security.rate_limiter import rate_limiter
     from security.validator import validator
@@ -38,7 +38,6 @@ def check_sms_duplicate(from_number, body, timestamp):
             return True
     
     sms_duplicate_cache[duplicate_key] = current_time
-    # Temizlik
     for key in list(sms_duplicate_cache.keys()):
         if current_time - sms_duplicate_cache[key] > 60:
             del sms_duplicate_cache[key]
@@ -83,7 +82,7 @@ def verify_user_agent():
 app = Flask(__name__)
 CORS(app, origins=["*"])
 
-# ==================== DEDEKTİF MODU (LOGLAMA) ====================
+# ==================== DEDEKTİF MODU ====================
 def print_env_debug():
     """Hangi DB değişkenlerinin mevcut olduğunu loglar"""
     print("\n🔍 --- DEDEKTİF MODU: BAŞLANGIÇ KONTROLÜ ---")
@@ -98,70 +97,58 @@ def print_env_debug():
         print(f"   🔑 {k}: [{hint}]")
     print("------------------------------------------------\n")
 
-# ==================== ZIRHLI DB BAĞLANTISI ====================
+# ==================== SADELEŞTİRİLMİŞ DB BAĞLANTISI ====================
 def get_db_connection():
     """
-    Kopmalara karşı dirençli bağlantı fonksiyonu.
-    Private ağı önceliklendirir, Public kullanırsa Retry yapar.
+    Public Proxy için sadeleştirilmiş bağlantı.
+    Agresif keepalive ayarları kaldırıldı çünkü proxy handshake'ini bozuyor olabilir.
     """
     
-    # 1. URL TESPİTİ
-    db_url = None
-    source = "Unknown"
-
-    # A Planı: Private URL
-    if os.environ.get('DATABASE_PRIVATE_URL'):
-        db_url = os.environ.get('DATABASE_PRIVATE_URL')
-        source = "Private URL (En İyisi)"
-    
-    # B Planı: Railway Internal Variables (PGHOST vb.)
-    elif os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
-        try:
+    # URL Seçimi
+    db_url = os.environ.get('DATABASE_PRIVATE_URL') # Önce Private
+    if not db_url and os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
+         try:
             db_url = f"postgres://{os.environ.get('PGUSER')}:{os.environ.get('PGPASSWORD')}@{os.environ.get('PGHOST')}:{os.environ.get('PGPORT')}/{os.environ.get('PGDATABASE')}"
-            source = "PG Internal Variables"
-        except: pass
+         except: pass
     
-    # C Planı: Public URL (Fallback)
     if not db_url:
-        db_url = os.environ.get('DATABASE_URL')
-        source = "Public URL (Dikkat: Kopabilir)"
+        db_url = os.environ.get('DATABASE_URL') # Son çare Public
 
     if not db_url:
         print("❌ HATA: DB URL bulunamadı.")
         return None
 
-    # SSL Zorlaması
+    # Public Proxy SSL hatasını çözmek için SSL modunu 'require' olarak netleştir
     if "sslmode" not in db_url:
-        db_url += "&sslmode=require" if "?" in db_url else "?sslmode=require"
+        if "?" in db_url:
+            db_url += "&sslmode=require"
+        else:
+            db_url += "?sslmode=require"
 
-    # 2. BAĞLANTI DENEMESİ (RETRY LOOP)
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            # SADELEŞTİRİLMİŞ BAĞLANTI:
+            # Proxy'nin kafasını karıştırmamak için ekstra parametreleri kaldırdık.
             conn = psycopg2.connect(
                 db_url,
-                keepalives=1,           # Bağlantıyı canlı tut
-                keepalives_idle=30,     # 30sn boşta kalırsa dürt
-                keepalives_interval=10, # 10sn arayla kontrol et
-                keepalives_count=5,     # 5 kere cevap yoksa kapat
-                connect_timeout=10
+                connect_timeout=10,
+                # keepalives=1 # Gerekirse bunu tekrar açarız ama şimdilik kapalı deneyelim
             )
             return conn
         except OperationalError as e:
-            print(f"⚠️ Bağlantı hatası ({source}) - Deneme {attempt+1}/{max_retries}: {e}")
-            time.sleep(1) # 1 saniye bekle tekrar dene
+            print(f"⚠️ Bağlantı hatası (Deneme {attempt+1}/{max_retries}): {e}")
+            time.sleep(2) # Bekleme süresini biraz artırdık
         except Exception as e:
             print(f"❌ Kritik Hata: {e}")
             return None
     
-    print("❌ Veritabanına bağlanılamadı (Tüm denemeler başarısız).")
+    print("❌ Veritabanına bağlanılamadı.")
     return None
 
 # ==================== TABLE CREATION ====================
 def create_tables():
-    # Dedektifi çalıştır
     print_env_debug()
-    
     conn = get_db_connection()
     if not conn:
         print("❌ Tablolar oluşturulamadı: Bağlantı yok.")
@@ -270,16 +257,14 @@ def gateway_sms():
             cur.close()
             print(f"✅ SMS DB'ye Yazıldı: {from_number}")
 
-            # 6. Chatbot (Taze Instance ile)
+            # 6. Chatbot
             try:
-                # Chatbot'u BURADA import ediyoruz ki en başta hata verirse sunucu çökmesin
-                # Ve her istekte taze connection kullansın
                 from chatbot_manager import ChatbotManager
                 temp_chatbot = ChatbotManager()
                 bot_response = temp_chatbot.handle_message(body, from_number, 'tr')
                 print(f"🤖 Chatbot Yanıtı: {bot_response}")
             except Exception as e:
-                print(f"⚠️ Chatbot Hatası (Kritik Değil): {e}")
+                print(f"⚠️ Chatbot Hatası: {e}")
             
             return jsonify({
                 "status": "success",
@@ -296,7 +281,6 @@ def gateway_sms():
 
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot_api():
-    """Web arayüzü için endpoint"""
     try:
         from chatbot_manager import ChatbotManager
         temp_chatbot = ChatbotManager()
