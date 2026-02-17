@@ -97,48 +97,60 @@ def print_env_debug():
         print(f"   🔑 {k}: [{hint}]")
     print("------------------------------------------------\n")
 
-# ==================== SADELEŞTİRİLMİŞ DB BAĞLANTISI ====================
+# ==================== DB BAĞLANTISI (Fix GSSAPI) ====================
 def get_db_connection():
     """
-    Public Proxy için sadeleştirilmiş bağlantı.
-    Agresif keepalive ayarları kaldırıldı çünkü proxy handshake'ini bozuyor olabilir.
+    Public Proxy bağlantısı için GSSAPI devre dışı bırakılmış bağlantı fonksiyonu.
     """
     
-    # URL Seçimi
-    db_url = os.environ.get('DATABASE_PRIVATE_URL') # Önce Private
-    if not db_url and os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
+    # 1. URL TESPİTİ
+    db_url = None
+    
+    # A Planı: Private URL
+    if os.environ.get('DATABASE_PRIVATE_URL'):
+        db_url = os.environ.get('DATABASE_PRIVATE_URL')
+    
+    # B Planı: Internal Variables
+    elif os.environ.get('PGHOST') and 'ballast' not in os.environ.get('PGHOST', ''):
          try:
             db_url = f"postgres://{os.environ.get('PGUSER')}:{os.environ.get('PGPASSWORD')}@{os.environ.get('PGHOST')}:{os.environ.get('PGPORT')}/{os.environ.get('PGDATABASE')}"
          except: pass
     
+    # C Planı: Public URL (Fallback)
     if not db_url:
-        db_url = os.environ.get('DATABASE_URL') # Son çare Public
+        db_url = os.environ.get('DATABASE_URL')
 
     if not db_url:
         print("❌ HATA: DB URL bulunamadı.")
         return None
 
-    # Public Proxy SSL hatasını çözmek için SSL modunu 'require' olarak netleştir
-    if "sslmode" not in db_url:
-        if "?" in db_url:
-            db_url += "&sslmode=require"
-        else:
-            db_url += "?sslmode=require"
+    # URL Debug (Şifre gizleme)
+    try:
+        masked_url = re.sub(r':([^:@]+)@', ':****@', db_url)
+        # print(f"🔗 Bağlanılan URL: {masked_url}") # Güvenlik için loga çok basma
+    except: pass
 
+    # 2. BAĞLANTI PARAMETRELERİ
+    # SSL ve GSSAPI ayarları
+    conn_args = {
+        'dsn': db_url,
+        'connect_timeout': 10,
+        'gssencmode': 'disable',  # <--- KRİTİK AYAR: Proxy'lerdeki el sıkışma hatasını çözer
+    }
+    
+    # SSL Mode kontrolü
+    if "sslmode" not in db_url:
+        conn_args['sslmode'] = 'require'
+
+    # 3. BAĞLANTI DENEMESİ
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            # SADELEŞTİRİLMİŞ BAĞLANTI:
-            # Proxy'nin kafasını karıştırmamak için ekstra parametreleri kaldırdık.
-            conn = psycopg2.connect(
-                db_url,
-                connect_timeout=10,
-                # keepalives=1 # Gerekirse bunu tekrar açarız ama şimdilik kapalı deneyelim
-            )
+            conn = psycopg2.connect(**conn_args)
             return conn
         except OperationalError as e:
             print(f"⚠️ Bağlantı hatası (Deneme {attempt+1}/{max_retries}): {e}")
-            time.sleep(2) # Bekleme süresini biraz artırdık
+            time.sleep(2)
         except Exception as e:
             print(f"❌ Kritik Hata: {e}")
             return None
